@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description:
     "Nivel Propiedades - Inmobiliaria en Ramos Mejía. Venta, alquiler, administración y tasaciones en Zona Oeste. Más de 46 años de trayectoria.",
   keywords: ["inmobiliaria", "Ramos Mejía", "propiedades", "venta", "alquiler", "Zona Oeste"],
+  icons: { icon: "/favicon.png" },
   metadataBase: new URL("https://nivelpropiedades.com.ar"),
   openGraph: {
     type: "website",
