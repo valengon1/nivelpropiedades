@@ -21,6 +21,7 @@ export function Header() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeOp, setActiveOp] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -30,12 +31,23 @@ export function Header() {
 
   useEffect(() => {
     setMenuOpen(false);
+    if (pathname !== "/") setActiveOp(null);
   }, [pathname]);
 
+  useEffect(() => {
+    const onSearch = (e: Event) => setActiveOp((e as CustomEvent).detail?.op ?? null);
+    const onHome = () => setActiveOp(null);
+    window.addEventListener("nivel-quick-search", onSearch);
+    window.addEventListener("nivel-go-home", onHome);
+    return () => {
+      window.removeEventListener("nivel-quick-search", onSearch);
+      window.removeEventListener("nivel-go-home", onHome);
+    };
+  }, []);
+
   const isActive = (link: typeof navLinks[0]) => {
-    // Venta / Alquileres are filters, never "active"
-    if (link.op) return false;
-    if (link.href === "/") return pathname === "/";
+    if (link.op) return activeOp === link.op;
+    if (link.href === "/") return pathname === "/" && !activeOp;
     return pathname.startsWith(link.href);
   };
 
