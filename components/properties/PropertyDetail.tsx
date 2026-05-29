@@ -82,10 +82,10 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
           </div>
         </div>
 
-        <div className="container-site py-10">
+        <div className="container-site py-6 lg:py-10">
 
           {/* Top: image left + data right */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 lg:gap-10 items-start">
 
             {/* Left: images */}
             <div>
@@ -113,12 +113,12 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
 
               {/* Carousel thumbnails */}
               {images.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex gap-2 overflow-x-auto pb-2 mt-2">
                   {images.map((src, i) => (
                     <button
                       key={i}
                       onClick={() => setThumbIndex(i)}
-                      className={`relative w-20 h-14 flex-shrink-0 overflow-hidden transition-all ${
+                      className={`relative w-20 h-16 flex-shrink-0 overflow-hidden transition-all ${
                         i === thumbIndex ? "ring-1 ring-[#0a0a0a]" : "opacity-50 hover:opacity-80"
                       }`}
                     >
@@ -137,8 +137,8 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
               </div>
 
               <h1
-                className="font-bold text-[#0a0a0a] leading-tight mb-4"
-                style={{ fontSize: "clamp(1.4rem, 2.5vw, 2rem)", letterSpacing: "-0.04em" }}
+                className="font-bold text-[#0a0a0a] leading-tight mb-4 text-2xl lg:text-[clamp(1.4rem,2.5vw,2rem)]"
+                style={{ letterSpacing: "-0.04em" }}
               >
                 {property.title}
               </h1>
@@ -187,7 +187,7 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
 
           {/* Description - full width */}
           {property.description && (
-            <div className="mt-12 border-t border-[#e5e5e5] pt-10">
+            <div className="mt-8 lg:mt-12 border-t border-[#e5e5e5] pt-8 lg:pt-10">
               <p className="section-kicker mb-4">Descripción</p>
               <p className="text-[#444] leading-[1.85] text-[15px] whitespace-pre-line max-w-3xl">
                 {property.description}
@@ -196,7 +196,7 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
           )}
 
           {/* Map - centered */}
-          <div className="mt-12 border-t border-[#e5e5e5] pt-10">
+          <div className="mt-8 lg:mt-12 border-t border-[#e5e5e5] pt-8 lg:pt-10">
             <p className="section-kicker mb-4 text-center">Ubicación</p>
             <p className="text-sm text-[#6b6b6b] mb-4 flex items-center justify-center gap-1.5">
               <MapPin size={13} />
