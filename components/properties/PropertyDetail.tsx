@@ -88,11 +88,11 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 lg:gap-10 items-start">
 
             {/* Left: images */}
-            <div>
+            <div className="min-w-0 overflow-hidden">
               {/* Main image */}
               <div
-                className="relative bg-[#f7f7f6] overflow-hidden cursor-zoom-in mb-3"
-                style={{ aspectRatio: "16/10" }}
+                className="relative w-full bg-[#f7f7f6] overflow-hidden cursor-zoom-in mb-3"
+                style={{ aspectRatio: "16/10", maxHeight: "65vh" }}
                 onClick={() => { setLightboxIndex(thumbIndex); setLightboxOpen(true); }}
               >
                 {images[thumbIndex] && (
