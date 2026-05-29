@@ -83,9 +83,11 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
         </div>
 
         <div className="container-site py-10">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
 
-            {/* Left: images + description + map */}
+          {/* Top: image left + data right */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10 items-start">
+
+            {/* Left: images */}
             <div>
               {/* Main image */}
               <div
@@ -109,7 +111,7 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
                 </div>
               </div>
 
-              {/* Thumbnails */}
+              {/* Carousel thumbnails */}
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {images.map((src, i) => (
@@ -125,35 +127,6 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
                   ))}
                 </div>
               )}
-
-              {/* Description */}
-              {property.description && (
-                <div className="mt-10">
-                  <p className="section-kicker mb-4">Descripción</p>
-                  <p className="text-[#444] leading-[1.85] text-[15px] whitespace-pre-line">
-                    {property.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Map */}
-              <div className="mt-10">
-                <p className="section-kicker mb-4">Ubicación</p>
-                <p className="text-sm text-[#6b6b6b] mb-4 flex items-center gap-1.5">
-                  <MapPin size={13} />
-                  {property.address}
-                </p>
-                <div className="w-full h-[280px] bg-[#f7f7f6] overflow-hidden relative">
-                  <iframe
-                    src={`https://www.google.com/maps?q=${mapQuery}&output=embed&hl=es&z=16`}
-                    width="100%" height="100%"
-                    style={{ border: 0, filter: "grayscale(100%)" }}
-                    allowFullScreen loading="lazy"
-                    title="Ubicación de la propiedad"
-                    className="absolute inset-0"
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Right: sidebar */}
@@ -211,6 +184,36 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
               </div>
             </div>
           </div>
+
+          {/* Description - full width */}
+          {property.description && (
+            <div className="mt-12 border-t border-[#e5e5e5] pt-10">
+              <p className="section-kicker mb-4">Descripción</p>
+              <p className="text-[#444] leading-[1.85] text-[15px] whitespace-pre-line max-w-3xl">
+                {property.description}
+              </p>
+            </div>
+          )}
+
+          {/* Map - centered */}
+          <div className="mt-12 border-t border-[#e5e5e5] pt-10">
+            <p className="section-kicker mb-4 text-center">Ubicación</p>
+            <p className="text-sm text-[#6b6b6b] mb-4 flex items-center justify-center gap-1.5">
+              <MapPin size={13} />
+              {property.address}
+            </p>
+            <div className="mx-auto max-w-3xl h-[320px] bg-[#f7f7f6] overflow-hidden relative">
+              <iframe
+                src={`https://www.google.com/maps?q=${mapQuery}&output=embed&hl=es&z=16`}
+                width="100%" height="100%"
+                style={{ border: 0, filter: "grayscale(100%)" }}
+                allowFullScreen loading="lazy"
+                title="Ubicación de la propiedad"
+                className="absolute inset-0"
+              />
+            </div>
+          </div>
+
         </div>
       </motion.div>
 
