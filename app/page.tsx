@@ -43,6 +43,7 @@ export default function HomePage() {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [counter46, setCounter46] = useState(0);
   const counterRef = useRef<HTMLSpanElement>(null);
+  const counterAnimated = useRef(false);
 
   // ── Load properties ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -84,9 +85,11 @@ export default function HomePage() {
     const el = counterRef.current;
     if (!el) return;
     // Lower threshold so mobile can trigger it even with partial visibility
+    if (counterAnimated.current) { setCounter46(46); return; }
     const obs = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
+        counterAnimated.current = true;
         let n = 0;
         const step = () => { n++; setCounter46(n); if (n < 46) setTimeout(step, 22); };
         step();
