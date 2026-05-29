@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sobre nosotros | Nivel Propiedades</title>
+  <meta name="description" content="Nivel Propiedades es una inmobiliaria familiar de Ramos Mejía, en su tercera generación. Más de 46 años de trayectoria en venta, alquiler y administración de propiedades." />
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --black: #070707;
+      --gray: #666666;
+      --light-gray: #f4f4f4;
+      --border: #e4e4e4;
+      --white: #ffffff;
+      --blue: #1f6feb;
+      --max: 1180px;
+      --shadow: 0 18px 45px rgba(0,0,0,.09);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: "Inter", sans-serif; color: var(--black); background: var(--white); overflow-x: hidden; animation: pageIn .55s ease both; }
+    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    button { font-family: inherit; }
+    ::selection { background: var(--black); color: var(--white); }
+
+    .container { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+    .section { padding: 90px 0; }
+
+    .section-kicker { font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); margin-bottom: 12px; display: inline-flex; align-items: center; gap: 10px; }
+    .section-kicker::before { content: ""; width: 28px; height: 2px; background: var(--blue); display: inline-block; }
+    .section-title { font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.055em; line-height: 1; font-weight: 900; }
+
+    /* ===== HEADER ===== */
+    header { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: rgba(255,255,255,.96); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+    .nav { height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+    .logo { display: flex; align-items: center; height: 54px; flex-shrink: 0; }
+    .header-logo-img { height: 48px; width: auto; object-fit: contain; display: block; transition: transform .25s ease, opacity .25s ease; }
+    .logo:hover .header-logo-img { transform: translateY(-2px); opacity: .92; }
+    .nav-links { display: flex; align-items: center; gap: 28px; font-size: 14px; font-weight: 800; }
+    .nav-links a { color: #222; transition: color .2s ease; position: relative; padding: 6px 0; }
+    .nav-links a::after { content: ""; position: absolute; left: 0; bottom: 0; width: 0; height: 2px; background: var(--black); transition: width .25s ease; }
+    .nav-links a:hover { color: var(--blue); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-links a.active-page { color: var(--blue); }
+    .nav-links a.active-page::after { width: 100%; }
+    .menu-btn { display: none; border: 0; background: var(--black); color: var(--white); width: 42px; height: 42px; font-size: 18px; cursor: pointer; }
+
+    /* ===== PAGE HERO ===== */
+    .page-hero { padding-top: 82px; background: var(--light-gray); border-bottom: 1px solid var(--border); }
+    .page-hero-inner { padding: 48px 0 42px; }
+    .page-hero-title { font-size: clamp(38px, 6vw, 64px); letter-spacing: -0.065em; line-height: .93; font-weight: 900; margin: 14px 0 0; }
+    .back-link { display: flex; align-items: center; gap: 10px; color: var(--gray); font-size: 14px; font-weight: 800; transition: color .2s ease; margin-bottom: 24px; }
+    .back-link:hover { color: var(--black); }
+
+    /* ===== ABOUT ===== */
+    .about-grid { display: grid; grid-template-columns: .82fr 1.18fr; gap: 60px; align-items: start; }
+
+    .about-number strong {
+      font-size: clamp(70px, 10vw, 130px);
+      line-height: .85; letter-spacing: -0.08em;
+      display: inline-flex; font-weight: 900; white-space: nowrap;
+    }
+    .about-number span { display: block; margin-top: 14px; color: var(--gray); line-height: 1.6; max-width: 320px; }
+
+    .counter-wrap { display: inline-flex !important; align-items: baseline; gap: 0; white-space: nowrap; }
+    .about-number .counter { color: var(--black); font-size: inherit; line-height: inherit; margin: 0; }
+
+    .about-services { margin-top: 32px; display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 360px; }
+    .about-service { border: 1px solid var(--border); padding: 16px 18px; font-weight: 800; display: flex; align-items: center; gap: 10px; background: var(--white); transition: transform .22s ease, border-color .22s ease, background .22s ease; }
+    .about-service:hover { transform: translateY(-3px); border-color: var(--black); background: #fbfbfb; }
+    .about-service i { color: var(--blue); }
+
+    .about-text .section-title { margin-bottom: 24px; }
+    .about-text p { color: #333; line-height: 1.85; margin-bottom: 18px; font-size: 16px; }
+
+    /* ===== FOOTER ===== */
+    footer { background: var(--black); color: var(--white); padding: 44px 0 24px; }
+    .footer-grid { display: grid; grid-template-columns: 1.2fr .8fr .8fr; gap: 30px; margin-bottom: 34px; }
+    footer h4 { margin-bottom: 14px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; font-weight: 900; }
+    footer p, footer a { color: #bbbbbb; line-height: 1.8; font-size: 14px; }
+    footer a:hover { color: var(--white); }
+    .footer-bottom { border-top: 1px solid #222; padding-top: 20px; color: #888; font-size: 13px; display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+    .fade { opacity: 0; transform: translateY(18px); transition: opacity .65s ease, transform .65s ease; }
+    .fade.show { opacity: 1; transform: translateY(0); }
+
+    /* ===== FLOATING SOCIALS ===== */
+    .floating-socials { position: fixed; right: 20px; bottom: 20px; display: grid; gap: 12px; z-index: 1000; }
+    .floating-btn { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; font-size: 28px; box-shadow: 0 12px 35px rgba(0,0,0,.22); transition: transform .22s ease, box-shadow .22s ease; position: relative; }
+    .floating-btn:hover { transform: translateY(-3px); box-shadow: 0 16px 42px rgba(0,0,0,.28); }
+    .whatsapp { background: #25d366; color: #06170c; }
+    .instagram { background: var(--black); color: var(--white); }
+    .whatsapp::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 1px solid rgba(37,211,102,.45); animation: whatsappPulse 1.8s ease infinite; }
+    .instagram::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 1px solid rgba(0,0,0,.22); animation: instagramPulse 2.2s ease infinite; }
+    @keyframes whatsappPulse { 0% { transform: scale(.86); opacity: .9; } 100% { transform: scale(1.25); opacity: 0; } }
+    @keyframes instagramPulse { 0% { transform: scale(.86); opacity: .65; } 100% { transform: scale(1.22); opacity: 0; } }
+
+    /* ===== TABLET ===== */
+    @media (max-width: 1000px) {
+      .nav-links { position: fixed; top: 82px; left: 0; right: 0; background: var(--white); border-bottom: 1px solid var(--border); padding: 20px; display: none; flex-direction: column; align-items: flex-start; gap: 18px; }
+      .nav-links.active { display: flex; }
+      .menu-btn { display: block; }
+    }
+
+    /* ===== MOBILE ===== */
+    @media (max-width: 650px) {
+      .nav { height: 68px; }
+      .logo { height: 44px; }
+      .header-logo-img { height: 38px; }
+      .menu-btn { width: 40px; height: 40px; font-size: 16px; }
+      .nav-links { top: 68px; padding: 18px 20px 22px; gap: 4px; box-shadow: 0 24px 45px rgba(0,0,0,.08); }
+      .nav-links a { width: 100%; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
+      .nav-links a:last-child { border-bottom: 0; }
+      .page-hero { padding-top: 68px; }
+      .page-hero-inner { padding: 30px 0 26px; }
+      .page-hero-title { font-size: clamp(36px, 11vw, 52px); }
+      .section { padding: 54px 0; }
+      .about-grid { grid-template-columns: 1fr; gap: 28px; }
+      .about-number strong { font-size: 76px; }
+      .about-number span { max-width: none; font-size: 14px; }
+      .about-services { max-width: none; margin-top: 22px; gap: 10px; }
+      .about-service { padding: 14px 15px; font-size: 14px; }
+      .about-text p { font-size: 14.5px; line-height: 1.75; margin-bottom: 14px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; margin-bottom: 28px; }
+      .footer-bottom { display: block; line-height: 1.7; }
+      .floating-socials { right: 14px; bottom: 14px; gap: 10px; }
+      .floating-btn { width: 52px; height: 52px; font-size: 25px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header id="siteHeader">
+    <div class="container nav">
+      <a href="index.html" class="logo" aria-label="Nivel Propiedades">
+        <img src="logo-header.png" alt="Nivel Propiedades" class="header-logo-img">
+      </a>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Inicio</a>
+        <a href="index.html">Venta</a>
+        <a href="index.html">Alquileres</a>
+        <a href="desarrolladores.html">Desarrolladores</a>
+        <a href="nosotros.html" class="active-page">Sobre nosotros</a>
+        <a href="contacto.html">Contacto</a>
+      </nav>
+      <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="page-hero">
+    <div class="container page-hero-inner">
+      <a href="index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Volver al inicio</a>
+      <div class="section-kicker">Sobre nosotros</div>
+      <h1 class="page-hero-title">Una inmobiliaria familiar, local y de tercera generación.</h1>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="about-grid">
+
+        <div class="about-number fade">
+          <strong class="counter-wrap"><span class="counter" data-target="46">0</span>+</strong>
+          <span>
+            Años de trayectoria en Ramos Mejía, administrando, alquilando y vendiendo en la zona de siempre.
+          </span>
+          <div class="about-services">
+            <div class="about-service"><i class="fa-solid fa-check"></i> Venta de propiedades</div>
+            <div class="about-service"><i class="fa-solid fa-check"></i> Alquileres</div>
+            <div class="about-service"><i class="fa-solid fa-check"></i> Administración</div>
+            <div class="about-service"><i class="fa-solid fa-check"></i> Tasaciones</div>
+          </div>
+        </div>
+
+        <div class="about-text fade">
+          <div class="section-kicker">Nuestra historia</div>
+          <h2 class="section-title">El negocio familiar que conoce la zona de siempre.</h2>
+
+          <p>
+            Nivel Propiedades – Negocios Inmobiliarios es una oficina inmobiliaria de Ramos Mejía con una historia familiar ligada al mercado local, clientes de años y operaciones construidas sobre confianza, seriedad y presencia.
+          </p>
+
+          <p>
+            Hoy la oficina continúa en una nueva etapa, con la tercera generación involucrada en el negocio, manteniendo la base que siempre nos caracterizó: administrar, alquilar y vender propiedades en Ramos Mejía y Zona Oeste.
+          </p>
+
+          <p>
+            Seguimos trabajando en la zona de siempre, con el mismo compromiso, pero con una imagen renovada y una forma de comunicar más actual. Conocemos el mercado local, entendemos el valor de cada propiedad y acompañamos a cada cliente de principio a fin.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="floating-socials">
+    <a href="https://wa.me/5491166838275" target="_blank" class="floating-btn whatsapp" aria-label="WhatsApp">
+      <i class="fa-brands fa-whatsapp"></i>
+    </a>
+    <a href="https://www.instagram.com/nivelpropiedades" target="_blank" class="floating-btn instagram" aria-label="Instagram">
+      <i class="fa-brands fa-instagram"></i>
+    </a>
+  </div>
+
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h4>Nivel Propiedades</h4>
+          <p>Negocios Inmobiliarios en Ramos Mejía. Venta, alquiler y administración de propiedades en Zona Oeste.</p>
+        </div>
+        <div>
+          <h4>Secciones</h4>
+          <p><a href="index.html">Inicio</a></p>
+          <p><a href="index.html">Venta</a></p>
+          <p><a href="index.html">Alquileres</a></p>
+          <p><a href="desarrolladores.html">Desarrolladores</a></p>
+          <p><a href="nosotros.html">Sobre nosotros</a></p>
+          <p><a href="contacto.html">Contacto</a></p>
+        </div>
+        <div>
+          <h4>Contacto</h4>
+          <p>Av. Gaona 2422, Ramos Mejía</p>
+          <p><a href="tel:+541146540122">4654-0122</a></p>
+          <p><a href="https://wa.me/5491166838275" target="_blank">11 6683-8275</a></p>
+          <p><a href="mailto:nivelconsultas@gmail.com">nivelconsultas@gmail.com</a></p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year"></span> Nivel Propiedades. Todos los derechos reservados.</span>
+        <span>Negocios Inmobiliarios</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const menuBtn = document.getElementById("menuBtn");
+    const navLinks = document.getElementById("navLinks");
+    const year = document.getElementById("year");
+
+    if (year) year.textContent = new Date().getFullYear();
+
+    menuBtn.addEventListener("click", () => {
+      navLinks.classList.toggle("active");
+      const icon = menuBtn.querySelector("i");
+      icon.classList.toggle("fa-bars");
+      icon.classList.toggle("fa-xmark");
+    });
+
+    navLinks.querySelectorAll("a").forEach(link => {
+      link.addEventListener("click", () => {
+        navLinks.classList.remove("active");
+        const icon = menuBtn.querySelector("i");
+        icon.classList.add("fa-bars");
+        icon.classList.remove("fa-xmark");
+      });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add("show");
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".fade").forEach(item => observer.observe(item));
+
+    const counters = document.querySelectorAll(".counter");
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const counter = entry.target;
+          const target = Number(counter.dataset.target);
+          let current = 0;
+          const duration = 900;
+          const stepTime = Math.max(Math.floor(duration / target), 18);
+          const updateCounter = () => {
+            current++;
+            counter.textContent = current;
+            if (current < target) setTimeout(updateCounter, stepTime);
+            else counter.textContent = target;
+          };
+          updateCounter();
+          counterObserver.unobserve(counter);
+        }
+      });
+    }, { threshold: 0.6 });
+    counters.forEach(counter => counterObserver.observe(counter));
+  </script>
+
+</body>
+</html>

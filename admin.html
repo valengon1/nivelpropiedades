@@ -1,0 +1,2912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Nivel Admin | Propiedades</title>
+
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --black: #070707;
+      --gray: #666666;
+      --soft: #f4f4f4;
+      --border: #e3e3e3;
+      --white: #ffffff;
+      --blue: #1f6feb;
+      --danger: #b42318;
+      --green: #16833a;
+      --shadow: 0 18px 45px rgba(0,0,0,.08);
+      --max: 1220px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      background: var(--soft);
+      color: var(--black);
+      min-height: 100vh;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    .container {
+      width: min(var(--max), calc(100% - 36px));
+      margin: 0 auto;
+    }
+
+    .loading-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(31,111,235,.10), transparent 32%),
+        radial-gradient(circle at 80% 70%, rgba(0,0,0,.08), transparent 34%),
+        var(--soft);
+      padding: 22px;
+    }
+
+    .loading-card {
+      width: min(380px, 100%);
+      background: var(--white);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      text-align: center;
+    }
+
+    .loading-card img {
+      height: 58px;
+      width: auto;
+      object-fit: contain;
+      margin: 0 auto 22px;
+    }
+
+    .loading-card strong {
+      display: block;
+      font-size: 24px;
+      letter-spacing: -0.04em;
+      margin-bottom: 8px;
+    }
+
+    .loading-card span {
+      display: block;
+      color: var(--gray);
+      font-size: 14px;
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+
+    .loader-line {
+      height: 3px;
+      background: #eeeeee;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loader-line::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 42%;
+      background: var(--black);
+      animation: loaderMove 1s ease-in-out infinite;
+    }
+
+    @keyframes loaderMove {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(260%); }
+    }
+
+    .hidden-screen {
+      display: none !important;
+    }
+
+    .login-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(31,111,235,.10), transparent 32%),
+        radial-gradient(circle at 80% 70%, rgba(0,0,0,.08), transparent 34%),
+        var(--soft);
+      padding: 22px;
+    }
+
+    .login-card {
+      width: min(430px, 100%);
+      background: var(--white);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 34px;
+    }
+
+    .login-logo {
+      height: 58px;
+      width: auto;
+      object-fit: contain;
+      margin-bottom: 28px;
+    }
+
+    .login-card h1 {
+      font-size: 38px;
+      letter-spacing: -0.06em;
+      line-height: .98;
+      margin-bottom: 12px;
+    }
+
+    .login-card p {
+      color: var(--gray);
+      line-height: 1.65;
+      font-size: 14px;
+      margin-bottom: 22px;
+    }
+
+    .login-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .login-error {
+      display: none;
+      background: #fff1f0;
+      border: 1px solid #ffc9c4;
+      color: var(--danger);
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .login-error.active {
+      display: block;
+    }
+
+    .admin-app {
+      display: none;
+    }
+
+    .admin-app.active {
+      display: block;
+    }
+
+    .admin-header {
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .admin-nav {
+      min-height: 82px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .admin-pill {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--gray);
+      background: var(--white);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      min-height: 46px;
+      border: 1px solid var(--black);
+      background: transparent;
+      color: var(--black);
+      padding: 0 18px;
+      font-size: 14px;
+      font-weight: 850;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-dark {
+      background: var(--black);
+      color: var(--white);
+    }
+
+    .btn-dark:hover {
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .btn-light {
+      background: var(--white);
+      color: var(--black);
+      border-color: var(--border);
+    }
+
+    .btn-light:hover {
+      border-color: var(--black);
+    }
+
+    .btn-danger {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: var(--white);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: var(--white);
+    }
+
+    .btn-small {
+      min-height: 38px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    .main {
+      padding: 34px 0 70px;
+    }
+
+    .hero-admin {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-padding {
+      padding: 28px;
+    }
+
+    .admin-kicker {
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      color: var(--blue);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-size: clamp(34px, 5vw, 60px);
+      letter-spacing: -0.065em;
+      line-height: .95;
+      max-width: 720px;
+      margin-bottom: 16px;
+    }
+
+    .lead {
+      color: var(--gray);
+      line-height: 1.75;
+      max-width: 680px;
+      font-size: 15px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .stat-card {
+      border: 1px solid var(--border);
+      padding: 20px;
+      background: #fbfbfb;
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 34px;
+      letter-spacing: -0.06em;
+      margin-bottom: 6px;
+      line-height: 1;
+    }
+
+    .stat-card span {
+      color: var(--gray);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 700;
+    }
+
+    .layout {
+      display: block;
+    }
+
+    .form-panel {
+      max-width: 860px;
+    }
+
+    .admin-tabs-bar {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+      background: var(--white);
+    }
+
+    .admin-tab-btn {
+      min-height: 50px;
+      border: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      background: transparent;
+      cursor: pointer;
+      padding: 0 22px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--gray);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: color .2s ease, border-color .2s ease;
+    }
+
+    .admin-tab-btn.active {
+      color: var(--black);
+      border-bottom-color: var(--black);
+    }
+
+    .admin-tab-btn:hover:not(.active) {
+      color: var(--black);
+    }
+
+    .tab-panel {
+      display: block;
+    }
+
+    .tab-panel.hidden {
+      display: none;
+    }
+
+    .panel-title {
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .panel-title h2 {
+      font-size: 22px;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+    }
+
+    .panel-title span {
+      color: var(--gray);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .form-body {
+      padding: 24px;
+    }
+
+    .form-section {
+      margin-bottom: 26px;
+    }
+
+    .form-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-section-title {
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--gray);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-section-title::before {
+      content: "";
+      width: 24px;
+      height: 2px;
+      background: var(--blue);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--gray);
+      margin-bottom: 7px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--white);
+      padding: 13px 14px;
+      outline: none;
+      font-size: 14px;
+      transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--black);
+      box-shadow: 0 0 0 4px rgba(31,111,235,.08);
+    }
+
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+      line-height: 1.65;
+    }
+
+    .compound-field {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 8px;
+    }
+
+    .suffix-field {
+      display: grid;
+      grid-template-columns: 1fr 54px;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .suffix-box {
+      border: 1px solid var(--border);
+      background: #fafafa;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--gray);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--border);
+      padding: 13px 14px;
+      min-height: 45px;
+    }
+
+    .checkbox-row input {
+      width: auto;
+      box-shadow: none;
+    }
+
+    .checkbox-row span {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .photo-upload {
+      border: 1px dashed #bbbbbb;
+      background: #fafafa;
+      padding: 18px;
+      transition: border-color .2s ease, background .2s ease;
+    }
+
+    .photo-upload:hover {
+      border-color: var(--black);
+      background: var(--white);
+    }
+
+    .photo-upload input {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .photo-note {
+      color: var(--gray);
+      font-size: 13px;
+      line-height: 1.55;
+      margin-top: 10px;
+    }
+
+    .preview-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .preview-img {
+      height: 92px;
+      border: 1px solid var(--border);
+      background: var(--soft);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .preview-img span {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      background: rgba(0,0,0,.78);
+      color: var(--white);
+      font-size: 11px;
+      font-weight: 900;
+      padding: 4px 6px;
+    }
+
+    .preview-img {
+      cursor: grab;
+    }
+
+    .preview-img:active {
+      cursor: grabbing;
+    }
+
+    .preview-img.dragging {
+      opacity: .45;
+      transform: scale(.98);
+      border-color: var(--blue);
+    }
+
+    .preview-img.drag-over {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(31,111,235,.12);
+    }
+
+    .photo-controls {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .photo-controls button {
+      border: 0;
+      background: rgba(0,0,0,.78);
+      color: var(--white);
+      width: 28px;
+      height: 24px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 900;
+      transition: background .2s ease;
+    }
+
+    .photo-controls button:hover {
+      background: var(--danger);
+    }
+
+    .description-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .ai-note {
+      color: var(--gray);
+      line-height: 1.6;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .form-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .property-list {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+    }
+
+    .list-toolbar {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .list-toolbar h2 {
+      font-size: 22px;
+      letter-spacing: -0.04em;
+    }
+
+    .list-toolbar input {
+      max-width: 280px;
+    }
+
+    .property-item {
+      border: 1px solid var(--border);
+      background: var(--white);
+      display: grid;
+      grid-template-columns: 145px 1fr;
+      gap: 18px;
+      padding: 14px;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .property-item:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+    }
+
+    .item-img {
+      height: 120px;
+      background: var(--soft);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .item-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .item-content {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .item-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+
+    .item-title h3 {
+      font-size: 18px;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      margin-bottom: 5px;
+    }
+
+    .item-title p {
+      color: var(--gray);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 700;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      background: var(--black);
+      color: var(--white);
+      padding: 6px 9px;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+
+    .tag.rent {
+      background: var(--blue);
+    }
+
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 9px;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      background: #eeeeee;
+      color: #333333;
+      white-space: nowrap;
+    }
+
+    .status-publicada { background: #eaf8ef; color: #146c2e; }
+    .status-borrador { background: #f1f1f1; color: #555555; }
+    .status-reservada { background: #fff4d6; color: #7a4e00; }
+    .status-vendida,
+    .status-alquilada { background: #ffe9e7; color: #9b1c12; }
+    .status-pausada { background: #e8eefc; color: #1f4aa8; }
+
+    .item-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      color: var(--gray);
+      font-size: 13px;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .item-meta strong {
+      color: var(--black);
+    }
+
+    .item-description {
+      color: #444;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 14px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .item-actions {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .empty-list {
+      padding: 34px;
+      text-align: center;
+      color: var(--gray);
+      line-height: 1.7;
+    }
+
+    .empty-list strong {
+      display: block;
+      color: var(--black);
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: var(--black);
+      color: var(--white);
+      padding: 14px 16px;
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: 0 14px 35px rgba(0,0,0,.25);
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease;
+      z-index: 400;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .export-box {
+      display: none;
+      margin: 18px;
+      border: 1px solid var(--border);
+      background: #fbfbfb;
+      padding: 16px;
+    }
+
+    .export-box.active {
+      display: block;
+    }
+
+    .export-box textarea {
+      min-height: 260px;
+      font-family: monospace;
+      font-size: 12px;
+      background: var(--white);
+    }
+
+    .custom-location-box {
+      display: none;
+      margin-top: 10px;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .custom-location-box.active {
+      display: grid;
+    }
+
+    .maps-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .map-preview {
+      display: none;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: var(--white);
+    }
+
+    .map-preview.active {
+      display: block;
+    }
+
+    .map-preview iframe {
+      width: 100%;
+      height: 230px;
+      border: 0;
+      filter: grayscale(100%);
+      display: block;
+    }
+
+    .preview-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.62);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+    }
+
+    .preview-modal.active {
+      display: flex;
+    }
+
+    .preview-card {
+      width: min(980px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: var(--white);
+      border: 1px solid var(--border);
+      box-shadow: 0 30px 90px rgba(0,0,0,.35);
+    }
+
+    .preview-head {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      position: sticky;
+      top: 0;
+      background: var(--white);
+      z-index: 2;
+    }
+
+    .preview-head strong {
+      font-size: 18px;
+      letter-spacing: -0.035em;
+    }
+
+    .preview-body {
+      padding: 22px;
+      display: grid;
+      grid-template-columns: 1fr .9fr;
+      gap: 22px;
+    }
+
+    .preview-main-img {
+      height: 420px;
+      background: var(--soft);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .preview-main-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .preview-info {
+      border: 1px solid var(--border);
+      padding: 24px;
+      align-self: start;
+    }
+
+    .preview-info h2 {
+      font-size: 34px;
+      letter-spacing: -0.055em;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .preview-location {
+      color: var(--gray);
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+
+    .preview-price {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      margin-bottom: 8px;
+    }
+
+    .preview-expenses {
+      color: var(--gray);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    .preview-data {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      border-top: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      margin-bottom: 18px;
+    }
+
+    .preview-data div {
+      padding: 12px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .preview-data span {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-weight: 900;
+      color: var(--gray);
+      margin-bottom: 5px;
+    }
+
+    .preview-data strong {
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .preview-description {
+      color: #333333;
+      line-height: 1.75;
+      font-size: 14px;
+    }
+
+    .import-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .import-row input {
+      max-width: 320px;
+    }
+
+    @media (max-width: 1050px) {
+      .hero-admin,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .form-panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .container {
+        width: min(100% - 26px, var(--max));
+      }
+
+      .admin-nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .header-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .header-actions .btn {
+        width: 100%;
+      }
+
+      .brand img {
+        height: 42px;
+      }
+
+      .panel-padding,
+      .form-body {
+        padding: 20px;
+      }
+
+      .form-grid,
+      .stats-grid,
+      .form-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .property-item {
+        grid-template-columns: 1fr;
+      }
+
+      .item-img {
+        height: 210px;
+      }
+
+      .item-top {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .list-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .list-toolbar input {
+        max-width: none;
+      }
+
+      .preview-body {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-main-img {
+        height: 280px;
+      }
+
+      .preview-info h2 {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <section class="loading-screen" id="loadingScreen">
+    <div class="loading-card">
+      <img src="logo-header.png" alt="Nivel Propiedades">
+      <strong>Cargando panel</strong>
+      <span>Estamos validando tu sesión de administrador.</span>
+      <div class="loader-line"></div>
+    </div>
+  </section>
+
+  <section class="login-screen hidden-screen" id="loginScreen">
+    <div class="login-card">
+      <img src="logo-header.png" alt="Nivel Propiedades" class="login-logo">
+
+      <h1>Acceso administrador</h1>
+      <p>
+        Ingresá con el mail y contraseña creados en Supabase para administrar las propiedades.
+      </p>
+
+      <form class="login-form" id="loginForm">
+        <div>
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="tu@email.com" autocomplete="username" required>
+        </div>
+
+        <div>
+          <label>Contraseña</label>
+          <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password" required>
+        </div>
+
+        <div class="login-error" id="loginError">
+          Email o contraseña incorrectos.
+        </div>
+
+        <button type="submit" class="btn btn-dark">
+          <i class="fa-solid fa-lock"></i>
+          Entrar al panel
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <div class="admin-app" id="adminApp">
+
+    <header class="admin-header">
+      <div class="container admin-nav">
+        <div class="brand">
+          <img src="logo-header.png" alt="Nivel Propiedades">
+          <span class="admin-pill">Panel administrador</span>
+        </div>
+
+        <div class="header-actions">
+          <a class="btn btn-light" href="index.html" target="_blank">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            Ver web
+          </a>
+
+          <button class="btn btn-light" id="logoutBtn">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            Salir
+          </button>
+
+          <button class="btn btn-dark" id="newPropertyBtn">
+            <i class="fa-solid fa-plus"></i>
+            Nueva propiedad
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="container">
+
+        <section class="hero-admin">
+          <div class="panel panel-padding">
+            <div class="admin-kicker">Nivel Propiedades</div>
+            <h1>Propiedades online.</h1>
+            <p class="lead">
+              Desde este panel cargás propiedades, fotos y descripciones. Los datos quedan guardados online en Supabase y la web pública lee solo las propiedades publicadas.
+            </p>
+          </div>
+
+          <div class="panel panel-padding">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <strong id="totalCount">0</strong>
+                <span>Propiedades cargadas</span>
+              </div>
+
+              <div class="stat-card">
+                <strong id="featuredCount">0</strong>
+                <span>Propiedades destacadas</span>
+              </div>
+
+              <div class="stat-card">
+                <strong id="saleCount">0</strong>
+                <span>En venta</span>
+              </div>
+
+              <div class="stat-card">
+                <strong id="rentCount">0</strong>
+                <span>En alquiler</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="layout">
+          <div class="admin-tabs-bar">
+            <button class="admin-tab-btn" id="tabBtnList" data-tab="list">
+              <i class="fa-solid fa-list"></i>
+              Propiedades
+            </button>
+            <button class="admin-tab-btn" id="tabBtnForm" data-tab="form">
+              <i class="fa-solid fa-plus" id="formTabIcon"></i>
+              <span id="formTabLabel">Nueva propiedad</span>
+            </button>
+          </div>
+
+          <div class="tab-panel hidden" id="tabPanelForm">
+          <form class="panel form-panel" id="propertyForm">
+            <div class="panel-title">
+              <div>
+                <h2 id="formTitle">Nueva propiedad</h2>
+                <span id="formSubtitle">Completá los datos principales</span>
+              </div>
+            </div>
+
+            <div class="form-body">
+              <input type="hidden" id="propertyId">
+
+              <div class="form-section">
+                <div class="form-section-title">Datos principales</div>
+
+                <div class="form-grid">
+                  <div class="form-group full">
+                    <label>Título</label>
+                    <input type="text" id="title" placeholder="Ej: PH reciclado con terraza propia" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Operación</label>
+                    <select id="operation" required>
+                      <option value="venta">Venta</option>
+                      <option value="alquiler">Alquiler</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="type" required>
+                      <option>Departamento</option>
+                      <option>Casa</option>
+                      <option>PH</option>
+                      <option>Lote</option>
+                      <option>Terreno</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Ubicación</label>
+                    <select id="location" required>
+                      <option>Ramos Mejía</option>
+                      <option>Haedo</option>
+                      <option>Villa Sarmiento</option>
+                      <option>Ciudadela</option>
+                      <option>Villa Luzuriaga</option>
+                      <option>Morón</option>
+                      <option value="__add_new__">+ Agregar nueva ubicación...</option>
+                    </select>
+
+                    <div class="custom-location-box" id="customLocationBox">
+                      <input type="text" id="customLocationInput" placeholder="Ej: Villa de Andando">
+                      <button type="button" class="btn btn-light btn-small" id="saveLocationBtn">
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Zona / barrio</label>
+                    <input type="text" id="zone" placeholder="Ej: Ramos Mejía Centro">
+                  </div>
+
+                  <div class="form-group full">
+                    <label>Dirección exacta</label>
+                    <input type="text" id="address" placeholder="Ej: Av. de Mayo 325, Ramos Mejía, Buenos Aires, Argentina">
+
+                    <div class="maps-tools">
+                      <button type="button" class="btn btn-light btn-small" id="searchAddressBtn">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        Buscar en Google Maps
+                      </button>
+
+                      <button type="button" class="btn btn-light btn-small" id="previewMapBtn">
+                        Previsualizar mapa
+                      </button>
+                    </div>
+
+                    <div class="map-preview" id="mapPreview">
+                      <iframe id="mapPreviewFrame" src="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title">Precio y características</div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>Precio</label>
+                    <div class="compound-field">
+                      <select id="priceCurrency">
+                        <option value="USD">USD</option>
+                        <option value="$">$</option>
+                      </select>
+                      <input type="text" id="priceAmount" placeholder="Ej: 145.000">
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Expensas</label>
+                    <div class="compound-field">
+                      <select id="expensesCurrency">
+                        <option value="$">$</option>
+                        <option value="USD">USD</option>
+                        <option value="Sin expensas">Sin expensas</option>
+                        <option value="Consultar">Consultar</option>
+                      </select>
+                      <input type="text" id="expensesAmount" placeholder="Ej: 85.000">
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Ambientes</label>
+                    <input type="number" id="rooms" min="0" step="1" placeholder="Ej: 3">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Superficie</label>
+                    <div class="suffix-field">
+                      <input type="number" id="metersAmount" min="0" step="1" placeholder="Ej: 86">
+                      <div class="suffix-box">m²</div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Baños</label>
+                    <input type="number" id="bathroomsAmount" min="0" step="1" placeholder="Ej: 1">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Cochera</label>
+                    <select id="garageAmount">
+                      <option value="No posee">No posee</option>
+                      <option value="1">1 cochera</option>
+                      <option value="2">2 cocheras</option>
+                      <option value="3">3 cocheras</option>
+                      <option value="4+">4+ cocheras</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Destacado</label>
+                    <input type="text" id="highlight" placeholder="Ej: Terraza propia">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Estado</label>
+                    <select id="publishStatus">
+                      <option value="Publicada">Publicada</option>
+                      <option value="Borrador">Borrador</option>
+                      <option value="Reservada">Reservada</option>
+                      <option value="Vendida">Vendida</option>
+                      <option value="Alquilada">Alquilada</option>
+                      <option value="Pausada">Pausada</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group full">
+                    <label>Destacada</label>
+                    <div class="checkbox-row">
+                      <input type="checkbox" id="featured">
+                      <span>Mostrar como destacada</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title">Fotos</div>
+
+                <div class="photo-upload">
+                  <label>Subir imágenes</label>
+                  <input type="file" id="photos" accept="image/*" multiple>
+                  <p class="photo-note">
+                    Recomendación: subí entre 4 y 30 fotos. Arrastrá las imágenes para ordenar; la primera queda como portada.
+                  </p>
+                </div>
+
+                <div class="preview-grid" id="photoPreview"></div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title">Descripción</div>
+
+                <div class="description-tools">
+                  <button type="button" class="btn btn-light btn-small" id="generateDescriptionBtn">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    Generar descripción con IA
+                  </button>
+
+                  <button type="button" class="btn btn-light btn-small" id="shortDescriptionBtn">
+                    Más corta
+                  </button>
+
+                  <button type="button" class="btn btn-light btn-small" id="premiumDescriptionBtn">
+                    Más comercial
+                  </button>
+                </div>
+
+                <textarea id="description" placeholder="Escribí una descripción o generala automáticamente con IA."></textarea>
+
+                <p class="ai-note">
+                  Esta versión genera una descripción automática con los datos cargados. Más adelante podemos conectarla con IA real para leer fotos.
+                </p>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-dark">
+                  <i class="fa-solid fa-floppy-disk"></i>
+                  Guardar
+                </button>
+
+                <button type="button" class="btn btn-light" id="previewPropertyBtn">
+                  Vista previa
+                </button>
+
+                <button type="button" class="btn btn-light" id="resetFormBtn">
+                  Limpiar
+                </button>
+              </div>
+            </div>
+          </form>
+          </div>
+
+          <div class="tab-panel" id="tabPanelList">
+          <section class="panel">
+            <div class="list-toolbar">
+              <div>
+                <h2>Propiedades cargadas</h2>
+              </div>
+
+              <input type="text" id="adminSearch" placeholder="Buscar por título, zona, dirección...">
+            </div>
+
+            <div class="property-list" id="propertyList"></div>
+
+            <div class="export-box" id="exportBox">
+              <label>JSON exportado</label>
+              <textarea id="exportText" readonly></textarea>
+            </div>
+
+            <div class="list-toolbar">
+              <button class="btn btn-light" id="exportBtn">
+                <i class="fa-solid fa-code"></i>
+                Exportar JSON
+              </button>
+
+              <button class="btn btn-danger" id="deleteAllBtn">
+                <i class="fa-solid fa-trash"></i>
+                Borrar todo
+              </button>
+
+              <div class="import-row">
+                <input type="file" id="importBackupFile" accept="application/json,.json">
+                <button class="btn btn-light" id="importBackupBtn">
+                  <i class="fa-solid fa-file-import"></i>
+                  Importar backup
+                </button>
+              </div>
+            </div>
+          </section>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="preview-modal" id="previewModal">
+      <div class="preview-card">
+        <div class="preview-head">
+          <strong>Vista previa de propiedad</strong>
+          <button type="button" class="btn btn-light btn-small" id="closePreviewBtn">
+            Cerrar
+          </button>
+        </div>
+
+        <div class="preview-body" id="previewBody"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">Guardado</div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://mclnbxiwmoilpjczuwpy.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTQ2MTksImV4cCI6MjA5MzQ5MDYxOX0.9uGcwJQB5YaqM7_acKay8r7VI4q2pKbip2wezWp4M5w";
+    const BUCKET = "property-images";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const SESSION_DURATION = 60 * 60 * 1000; // 60 minutos
+    const AUTH_TIME_KEY = "nivel_supabase_admin_last_activity";
+    const MIN_LOADING_TIME = 1000;
+    const CUSTOM_LOCATIONS_KEY = "nivel_custom_locations_v1";
+    const BASE_LOCATIONS = [
+      "Ramos Mejía",
+      "Haedo",
+      "Villa Sarmiento",
+      "Ciudadela",
+      "Villa Luzuriaga",
+      "Morón"
+    ];
+
+    let properties = [];
+    let currentImages = [];
+    let currentFiles = [];
+    let toastTimeout;
+
+    const loadingScreen = document.getElementById("loadingScreen");
+    const loginScreen = document.getElementById("loginScreen");
+    const adminApp = document.getElementById("adminApp");
+    const loginForm = document.getElementById("loginForm");
+    const loginError = document.getElementById("loginError");
+    const form = document.getElementById("propertyForm");
+    const propertyList = document.getElementById("propertyList");
+    const photoInput = document.getElementById("photos");
+    const photoPreview = document.getElementById("photoPreview");
+    const adminSearch = document.getElementById("adminSearch");
+    const exportBox = document.getElementById("exportBox");
+    const exportText = document.getElementById("exportText");
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2200);
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function showLoadingScreen() {
+      loadingScreen.classList.remove("hidden-screen");
+      loginScreen.classList.add("hidden-screen");
+      adminApp.classList.remove("active");
+    }
+
+    function showAdminApp() {
+      loadingScreen.classList.add("hidden-screen");
+      loginScreen.classList.add("hidden-screen");
+      adminApp.classList.add("active");
+    }
+
+    function showLoginScreen() {
+      loadingScreen.classList.add("hidden-screen");
+      loginScreen.classList.remove("hidden-screen");
+      adminApp.classList.remove("active");
+    }
+
+    function refreshSessionActivity() {
+      localStorage.setItem(AUTH_TIME_KEY, String(Date.now()));
+    }
+
+    function getLastActivity() {
+      return Number(localStorage.getItem(AUTH_TIME_KEY) || 0);
+    }
+
+    function isActivitySessionValid() {
+      const lastActivity = getLastActivity();
+
+      if (!lastActivity) return false;
+
+      return Date.now() - lastActivity < SESSION_DURATION;
+    }
+
+    async function logoutAdmin(message = "") {
+      localStorage.removeItem(AUTH_TIME_KEY);
+      await supabaseClient.auth.signOut();
+      showLoginScreen();
+
+      if (message) {
+        setTimeout(() => showToast(message), 100);
+      }
+    }
+
+    async function checkSession() {
+      const start = Date.now();
+      showLoadingScreen();
+
+      const { data } = await supabaseClient.auth.getSession();
+      const elapsed = Date.now() - start;
+
+      if (elapsed < MIN_LOADING_TIME) {
+        await wait(MIN_LOADING_TIME - elapsed);
+      }
+
+      if (!data.session) {
+        showLoginScreen();
+        return;
+      }
+
+      if (!isActivitySessionValid()) {
+        await logoutAdmin("Sesión vencida");
+        return;
+      }
+
+      refreshSessionActivity();
+      showAdminApp();
+      switchTab("list");
+      await fetchProperties();
+    }
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value.trim();
+
+      loginError.classList.remove("active");
+      showLoadingScreen();
+
+      const start = Date.now();
+
+      const { error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      const elapsed = Date.now() - start;
+
+      if (elapsed < MIN_LOADING_TIME) {
+        await wait(MIN_LOADING_TIME - elapsed);
+      }
+
+      if (error) {
+        showLoginScreen();
+        loginError.classList.add("active");
+        return;
+      }
+
+      refreshSessionActivity();
+      showAdminApp();
+      switchTab("list");
+      showToast("Acceso correcto");
+      await fetchProperties();
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await logoutAdmin("Sesión cerrada");
+    });
+
+    ["click", "keydown", "mousemove", "scroll", "touchstart"].forEach((eventName) => {
+      document.addEventListener(eventName, () => {
+        if (adminApp.classList.contains("active")) {
+          refreshSessionActivity();
+        }
+      }, { passive: true });
+    });
+
+    setInterval(async () => {
+      if (adminApp.classList.contains("active") && !isActivitySessionValid()) {
+        await logoutAdmin("Sesión cerrada por inactividad");
+      }
+    }, 60 * 1000);
+
+    function onlyDigits(value) {
+      return String(value || "").replace(/\D/g, "");
+    }
+
+    function formatThousands(value) {
+      const digits = onlyDigits(value);
+
+      if (!digits) return "";
+
+      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function normalizeMoneyInput(input) {
+      input.value = formatThousands(input.value);
+    }
+
+    function buildMoneyValue(currencyId, amountId) {
+      const currency = document.getElementById(currencyId).value;
+      const amount = formatThousands(document.getElementById(amountId).value);
+
+      if (!amount) return "";
+
+      document.getElementById(amountId).value = amount;
+      return `${currency} ${amount}`;
+    }
+
+    function buildExpensesValue() {
+      const currency = document.getElementById("expensesCurrency").value;
+      const amount = formatThousands(document.getElementById("expensesAmount").value);
+
+      if (currency === "Sin expensas" || currency === "Consultar") return currency;
+      if (!amount) return "Consultar";
+
+      document.getElementById("expensesAmount").value = amount;
+      return `${currency} ${amount}`;
+    }
+
+    function buildMetersValue() {
+      const value = document.getElementById("metersAmount").value.trim();
+      return value ? `${value} m²` : "";
+    }
+
+    function buildBathroomsValue() {
+      const value = Number(document.getElementById("bathroomsAmount").value || 0);
+      if (value <= 0) return "No posee";
+      return `${value} baño${value === 1 ? "" : "s"}`;
+    }
+
+    function buildGarageValue() {
+      const value = document.getElementById("garageAmount").value;
+      if (value === "No posee") return "No posee";
+      if (value === "4+") return "4+ cocheras";
+      return `${value} cochera${Number(value) === 1 ? "" : "s"}`;
+    }
+
+    function splitMoneyValue(value, defaultCurrency = "USD") {
+      if (!value) return { currency: defaultCurrency, amount: "" };
+
+      const clean = String(value).trim();
+
+      if (clean.startsWith("USD")) {
+        return { currency: "USD", amount: clean.replace("USD", "").trim() };
+      }
+
+      if (clean.startsWith("$")) {
+        return { currency: "$", amount: clean.replace("$", "").trim() };
+      }
+
+      return { currency: defaultCurrency, amount: clean };
+    }
+
+    function splitExpensesValue(value) {
+      const clean = String(value || "").trim();
+
+      if (!clean || clean === "Consultar") return { currency: "Consultar", amount: "" };
+      if (clean === "Sin expensas") return { currency: "Sin expensas", amount: "" };
+      if (clean.startsWith("USD")) return { currency: "USD", amount: clean.replace("USD", "").trim() };
+      if (clean.startsWith("$")) return { currency: "$", amount: clean.replace("$", "").trim() };
+
+      return { currency: "$", amount: clean };
+    }
+
+    function extractNumber(value) {
+      const match = String(value || "").match(/\d+/);
+      return match ? match[0] : "";
+    }
+
+    function slugify(text) {
+      return String(text || "propiedad")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+    }
+
+    function mapDbProperty(row) {
+      return {
+        id: row.id,
+        title: row.title || "",
+        operation: row.operation || "venta",
+        type: row.type || "Departamento",
+        location: row.location || "",
+        zone: row.zone || "",
+        address: row.address || "",
+        rooms: row.rooms || 0,
+        price: row.price || "",
+        expenses: row.expenses || "",
+        meters: row.meters || "",
+        bathrooms: row.bathrooms || "",
+        garage: row.garage || "",
+        highlight: row.highlight || "",
+        details: row.details || [],
+        description: row.description || "",
+        keywords: row.keywords || "",
+        featured: Boolean(row.featured),
+        publishStatus: row.publish_status || "Publicada",
+        image: row.image || "",
+        images: row.images || []
+      };
+    }
+
+    function mapPropertyToDb(property) {
+      return {
+        title: property.title,
+        operation: property.operation,
+        type: property.type,
+        location: property.location,
+        zone: property.zone,
+        address: property.address,
+        rooms: property.rooms,
+        price: property.price,
+        expenses: property.expenses,
+        meters: property.meters,
+        bathrooms: property.bathrooms,
+        garage: property.garage,
+        highlight: property.highlight,
+        details: property.details,
+        description: property.description,
+        keywords: property.keywords,
+        featured: property.featured,
+        publish_status: property.publishStatus,
+        image: property.image,
+        images: property.images
+      };
+    }
+
+    async function fetchProperties() {
+      const { data, error } = await supabaseClient
+        .from("properties")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        showToast("Error al cargar propiedades");
+        console.error(error);
+        return;
+      }
+
+      properties = (data || []).map(mapDbProperty);
+      renderList();
+      updateStats();
+    }
+
+    function updateStats() {
+      document.getElementById("totalCount").textContent = properties.length;
+      document.getElementById("featuredCount").textContent = properties.filter(item => item.featured).length;
+      document.getElementById("saleCount").textContent = properties.filter(item => item.operation === "venta").length;
+      document.getElementById("rentCount").textContent = properties.filter(item => item.operation === "alquiler").length;
+    }
+
+    function getMainImage(property) {
+      return property.image || (property.images && property.images[0]) || "https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=1200&auto=format&fit=crop";
+    }
+
+    function renderList() {
+      const query = adminSearch.value.toLowerCase().trim();
+
+      const filtered = properties.filter(property => {
+        const text = `${property.title} ${property.type} ${property.location} ${property.zone} ${property.address} ${property.price} ${property.highlight}`.toLowerCase();
+        return !query || text.includes(query);
+      });
+
+      if (filtered.length === 0) {
+        propertyList.innerHTML = `
+          <div class="empty-list">
+            <strong>No hay propiedades para mostrar.</strong>
+            Cargá una propiedad nueva o modificá la búsqueda.
+          </div>
+        `;
+        updateStats();
+        return;
+      }
+
+      propertyList.innerHTML = filtered.map(property => {
+        const operationLabel = property.operation === "venta" ? "Venta" : "Alquiler";
+        const tagClass = property.operation === "alquiler" ? "tag rent" : "tag";
+        const status = property.publishStatus || "Publicada";
+
+        return `
+          <article class="property-item">
+            <div class="item-img">
+              <img src="${getMainImage(property)}" alt="${property.title}">
+            </div>
+
+            <div class="item-content">
+              <div class="item-top">
+                <div class="item-title">
+                  <h3>${property.title}</h3>
+                  <p>${property.zone || property.location} · ${property.address || "Sin dirección cargada"}</p>
+                </div>
+
+                <div style="display:grid; gap:6px; justify-items:end;">
+                  <span class="${tagClass}">${operationLabel}</span>
+                  <span class="status-tag status-${status.toLowerCase()}">${status}</span>
+                </div>
+              </div>
+
+              <div class="item-meta">
+                <span><strong>${property.price || "-"}</strong></span>
+                <span>${property.type || "-"}</span>
+                <span>${property.rooms || 0} amb.</span>
+                <span>${property.meters || "-"}</span>
+                <span>${property.highlight || "-"}</span>
+                ${property.featured ? "<span><strong>Destacada</strong></span>" : ""}
+              </div>
+
+              <p class="item-description">${property.description || "Sin descripción cargada."}</p>
+
+              <div class="item-actions">
+                <button type="button" class="btn btn-light btn-small" data-action="edit" data-id="${property.id}">
+                  <i class="fa-solid fa-pen"></i>
+                  Editar
+                </button>
+
+                <button type="button" class="btn btn-light btn-small" data-action="price" data-id="${property.id}">
+                  <i class="fa-solid fa-tag"></i>
+                  Editar precio
+                </button>
+
+                <button type="button" class="btn btn-light btn-small" data-action="toggle" data-id="${property.id}">
+                  <i class="fa-solid fa-eye"></i>
+                  ${status === "Publicada" ? "Ocultar" : "Publicar"}
+                </button>
+
+                <button type="button" class="btn btn-light btn-small" data-action="duplicate" data-id="${property.id}">
+                  <i class="fa-solid fa-copy"></i>
+                  Duplicar
+                </button>
+
+                <button type="button" class="btn btn-danger btn-small" data-action="delete" data-id="${property.id}">
+                  <i class="fa-solid fa-trash"></i>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      updateStats();
+    }
+
+    function buildDefaultDetails() {
+      const rooms = Number(document.getElementById("rooms").value || 0);
+      const meters = buildMetersValue();
+      const highlight = document.getElementById("highlight").value.trim();
+
+      return [
+        rooms ? `${rooms} ambiente${rooms === 1 ? "" : "s"}` : "",
+        meters,
+        highlight
+      ].filter(Boolean);
+    }
+
+    function buildKeywordsValue() {
+      const values = [
+        document.getElementById("title").value,
+        document.getElementById("operation").value,
+        document.getElementById("type").value,
+        document.getElementById("location").value,
+        document.getElementById("zone").value,
+        document.getElementById("address").value,
+        document.getElementById("highlight").value
+      ];
+
+      return values.join(" ").toLowerCase().trim();
+    }
+
+    function getFormData() {
+      const details = buildDefaultDetails();
+      const images = currentImages.length > 0 ? currentImages : [];
+
+      return {
+        id: document.getElementById("propertyId").value || "",
+        title: document.getElementById("title").value.trim(),
+        operation: document.getElementById("operation").value,
+        type: document.getElementById("type").value,
+        location: document.getElementById("location").value,
+        zone: document.getElementById("zone").value.trim() || document.getElementById("location").value,
+        address: document.getElementById("address").value.trim(),
+        rooms: Number(document.getElementById("rooms").value || 0),
+        price: buildMoneyValue("priceCurrency", "priceAmount"),
+        expenses: buildExpensesValue(),
+        meters: buildMetersValue(),
+        bathrooms: buildBathroomsValue(),
+        garage: buildGarageValue(),
+        highlight: document.getElementById("highlight").value.trim() || "Buena ubicación",
+        details,
+        featured: document.getElementById("featured").checked,
+        publishStatus: document.getElementById("publishStatus").value,
+        image: images[0] || "",
+        images,
+        description: document.getElementById("description").value.trim(),
+        keywords: buildKeywordsValue()
+      };
+    }
+
+    function fillForm(property) {
+      document.getElementById("propertyId").value = property.id;
+      document.getElementById("title").value = property.title || "";
+      document.getElementById("operation").value = property.operation || "venta";
+      document.getElementById("type").value = property.type || "Departamento";
+      renderLocationOptions(property.location || "Ramos Mejía");
+      document.getElementById("zone").value = property.zone || "";
+      document.getElementById("address").value = property.address || "";
+
+      const priceParts = splitMoneyValue(property.price, "USD");
+      document.getElementById("priceCurrency").value = priceParts.currency;
+      document.getElementById("priceAmount").value = priceParts.amount;
+
+      const expensesParts = splitExpensesValue(property.expenses);
+      document.getElementById("expensesCurrency").value = expensesParts.currency;
+      document.getElementById("expensesAmount").value = expensesParts.amount;
+      toggleExpensesAmount();
+
+      document.getElementById("rooms").value = property.rooms || "";
+      document.getElementById("metersAmount").value = extractNumber(property.meters);
+      document.getElementById("bathroomsAmount").value = extractNumber(property.bathrooms);
+
+      const garageNumber = extractNumber(property.garage);
+      if (!garageNumber || String(property.garage || "").toLowerCase().includes("no posee")) {
+        document.getElementById("garageAmount").value = "No posee";
+      } else if (Number(garageNumber) >= 4) {
+        document.getElementById("garageAmount").value = "4+";
+      } else {
+        document.getElementById("garageAmount").value = garageNumber;
+      }
+
+      document.getElementById("highlight").value = property.highlight || "";
+      document.getElementById("publishStatus").value = property.publishStatus || "Publicada";
+      document.getElementById("featured").checked = Boolean(property.featured);
+      document.getElementById("description").value = property.description || "";
+
+      currentImages = property.images ? [...property.images] : [];
+      currentFiles = [];
+      renderPhotoPreview();
+
+      document.getElementById("formTitle").textContent = "Editar propiedad";
+      document.getElementById("formSubtitle").textContent = "Modificá los datos y volvé a guardar";
+      document.getElementById("formTabLabel").textContent = "Editar propiedad";
+      document.getElementById("formTabIcon").className = "fa-solid fa-pen";
+
+      switchTab("form");
+    }
+
+    function resetForm() {
+      form.reset();
+      renderLocationOptions("Ramos Mejía");
+      hideCustomLocationBox();
+      document.getElementById("propertyId").value = "";
+      document.getElementById("formTitle").textContent = "Nueva propiedad";
+      document.getElementById("formSubtitle").textContent = "Completá los datos principales";
+      document.getElementById("formTabLabel").textContent = "Nueva propiedad";
+      document.getElementById("formTabIcon").className = "fa-solid fa-plus";
+      currentImages = [];
+      currentFiles = [];
+      renderPhotoPreview();
+      exportBox.classList.remove("active");
+      toggleExpensesAmount();
+    }
+
+    function renderPhotoPreview() {
+      if (currentImages.length === 0) {
+        photoPreview.innerHTML = "";
+        return;
+      }
+
+      photoPreview.innerHTML = currentImages.map((src, index) => `
+        <div class="preview-img" draggable="true" data-index="${index}">
+          <img src="${src}" alt="Foto ${index + 1}">
+          <span>${index === 0 ? "Portada" : index + 1}</span>
+
+          <div class="photo-controls">
+            <button type="button" data-photo-action="remove" data-index="${index}" title="Eliminar">×</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    let draggedPhotoIndex = null;
+
+    function movePhoto(fromIndex, toIndex) {
+      if (fromIndex === toIndex) return;
+      if (fromIndex < 0 || toIndex < 0) return;
+      if (fromIndex >= currentImages.length || toIndex >= currentImages.length) return;
+
+      const [image] = currentImages.splice(fromIndex, 1);
+      currentImages.splice(toIndex, 0, image);
+
+      if (currentFiles.length) {
+        const [file] = currentFiles.splice(fromIndex, 1);
+        currentFiles.splice(toIndex, 0, file);
+      }
+
+      renderPhotoPreview();
+      showToast(toIndex === 0 ? "Nueva portada seleccionada" : "Orden de fotos actualizado");
+    }
+
+    photoPreview.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-photo-action]");
+      if (!button) return;
+
+      const action = button.dataset.photoAction;
+      const index = Number(button.dataset.index);
+
+      if (Number.isNaN(index)) return;
+
+      if (action === "remove") {
+        currentImages.splice(index, 1);
+        currentFiles.splice(index, 1);
+        showToast("Foto eliminada");
+      }
+
+      renderPhotoPreview();
+    });
+
+    photoPreview.addEventListener("dragstart", (event) => {
+      const item = event.target.closest(".preview-img");
+      if (!item) return;
+
+      draggedPhotoIndex = Number(item.dataset.index);
+      item.classList.add("dragging");
+
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(draggedPhotoIndex));
+    });
+
+    photoPreview.addEventListener("dragover", (event) => {
+      const item = event.target.closest(".preview-img");
+      if (!item) return;
+
+      event.preventDefault();
+      item.classList.add("drag-over");
+      event.dataTransfer.dropEffect = "move";
+    });
+
+    photoPreview.addEventListener("dragleave", (event) => {
+      const item = event.target.closest(".preview-img");
+      if (!item) return;
+
+      item.classList.remove("drag-over");
+    });
+
+    photoPreview.addEventListener("drop", (event) => {
+      const item = event.target.closest(".preview-img");
+      if (!item) return;
+
+      event.preventDefault();
+
+      const toIndex = Number(item.dataset.index);
+      const fromIndex = draggedPhotoIndex;
+
+      document.querySelectorAll(".preview-img").forEach(element => {
+        element.classList.remove("dragging", "drag-over");
+      });
+
+      draggedPhotoIndex = null;
+
+      if (Number.isNaN(fromIndex) || Number.isNaN(toIndex)) return;
+
+      movePhoto(fromIndex, toIndex);
+    });
+
+    photoPreview.addEventListener("dragend", () => {
+      document.querySelectorAll(".preview-img").forEach(element => {
+        element.classList.remove("dragging", "drag-over");
+      });
+
+      draggedPhotoIndex = null;
+    });
+
+    photoInput.addEventListener("change", async (event) => {
+      const files = Array.from(event.target.files || []);
+      if (files.length === 0) return;
+
+      const limitedFiles = files.slice(0, 30);
+
+      if (files.length > 30) {
+        showToast("Máximo 30 fotos. Se cargaron las primeras 30.");
+      }
+
+      const previews = limitedFiles.map(file => URL.createObjectURL(file));
+      currentFiles = limitedFiles;
+      currentImages = previews;
+      renderPhotoPreview();
+
+      if (files.length <= 15) {
+        showToast(`${limitedFiles.length} foto${limitedFiles.length === 1 ? "" : "s"} cargada${limitedFiles.length === 1 ? "" : "s"}`);
+      }
+    });
+
+    async function uploadSelectedImages(propertyTitle) {
+      if (currentFiles.length === 0) {
+        return currentImages;
+      }
+
+      const uploadedUrls = [];
+
+      for (let i = 0; i < currentFiles.length; i++) {
+        const file = currentFiles[i];
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `properties/${Date.now()}-${slugify(propertyTitle)}-${i + 1}.${ext}`;
+
+        const { error } = await supabaseClient.storage
+          .from(BUCKET)
+          .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false
+          });
+
+        if (error) {
+          console.error(error);
+          throw new Error("No se pudo subir una imagen");
+        }
+
+        const { data } = supabaseClient.storage
+          .from(BUCKET)
+          .getPublicUrl(path);
+
+        uploadedUrls.push(data.publicUrl);
+      }
+
+      return uploadedUrls;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      try {
+        const property = getFormData();
+
+        if (!property.title) {
+          showToast("Falta el título");
+          return;
+        }
+
+        if (!property.description) {
+          property.description = generateDescription("normal");
+        }
+
+        const finalImages = await uploadSelectedImages(property.title);
+        property.images = finalImages;
+        property.image = finalImages[0] || "";
+
+        const payload = mapPropertyToDb(property);
+
+        if (property.id) {
+          const { error } = await supabaseClient
+            .from("properties")
+            .update(payload)
+            .eq("id", property.id);
+
+          if (error) throw error;
+
+          showToast("Propiedad actualizada");
+        } else {
+          const { error } = await supabaseClient
+            .from("properties")
+            .insert(payload);
+
+          if (error) throw error;
+
+          showToast("Propiedad guardada");
+        }
+
+        await fetchProperties();
+        resetForm();
+        switchTab("list");
+      } catch (error) {
+        console.error(error);
+        showToast(error.message || "Error al guardar");
+      }
+    });
+
+    function editProperty(id) {
+      const property = properties.find(item => String(item.id) === String(id));
+
+      if (!property) {
+        showToast("No se encontró la propiedad");
+        return;
+      }
+
+      fillForm(property);
+      showToast("Propiedad cargada para editar");
+    }
+
+    async function duplicateProperty(id) {
+      const property = properties.find(item => String(item.id) === String(id));
+
+      if (!property) {
+        showToast("No se encontró la propiedad");
+        return;
+      }
+
+      const copy = {
+        ...property,
+        id: "",
+        title: `${property.title} copia`,
+        featured: false,
+        publishStatus: "Borrador"
+      };
+
+      const { error } = await supabaseClient
+        .from("properties")
+        .insert(mapPropertyToDb(copy));
+
+      if (error) {
+        console.error(error);
+        showToast("No se pudo duplicar");
+        return;
+      }
+
+      await fetchProperties();
+      showToast("Propiedad duplicada");
+    }
+
+    async function deleteProperty(id) {
+      const property = properties.find(item => String(item.id) === String(id));
+
+      if (!property) {
+        showToast("No se encontró la propiedad");
+        return;
+      }
+
+      const ok = confirm(`¿Eliminar "${property.title}"?`);
+      if (!ok) return;
+
+      const { error } = await supabaseClient
+        .from("properties")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.error(error);
+        showToast("No se pudo eliminar");
+        return;
+      }
+
+      await fetchProperties();
+      showToast("Propiedad eliminada");
+    }
+
+    async function togglePublishStatus(id) {
+      const property = properties.find(item => String(item.id) === String(id));
+
+      if (!property) {
+        showToast("No se encontró la propiedad");
+        return;
+      }
+
+      const nextStatus = property.publishStatus === "Publicada" ? "Pausada" : "Publicada";
+
+      const { error } = await supabaseClient
+        .from("properties")
+        .update({ publish_status: nextStatus })
+        .eq("id", id);
+
+      if (error) {
+        console.error(error);
+        showToast("No se pudo cambiar estado");
+        return;
+      }
+
+      await fetchProperties();
+      showToast(nextStatus === "Publicada" ? "Propiedad publicada" : "Propiedad oculta");
+    }
+
+    async function quickEditPrice(id) {
+      const property = properties.find(item => String(item.id) === String(id));
+
+      if (!property) {
+        showToast("No se encontró la propiedad");
+        return;
+      }
+
+      const current = property.price || "";
+      const next = prompt("Nuevo precio. Podés escribir USD 145000, $ 480000 o solo 145000", current);
+
+      if (next === null) return;
+
+      const clean = next.trim();
+
+      if (!clean) {
+        showToast("Precio vacío");
+        return;
+      }
+
+      let nextPrice = "";
+
+      if (clean.startsWith("USD")) {
+        nextPrice = `USD ${formatThousands(clean)}`;
+      } else if (clean.startsWith("$")) {
+        nextPrice = `$ ${formatThousands(clean)}`;
+      } else {
+        const currency = property.price && property.price.startsWith("$") ? "$" : "USD";
+        nextPrice = `${currency} ${formatThousands(clean)}`;
+      }
+
+      const { error } = await supabaseClient
+        .from("properties")
+        .update({ price: nextPrice })
+        .eq("id", id);
+
+      if (error) {
+        console.error(error);
+        showToast("No se pudo actualizar precio");
+        return;
+      }
+
+      await fetchProperties();
+      showToast("Precio actualizado");
+    }
+
+    propertyList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-action]");
+      if (!button) return;
+
+      const action = button.dataset.action;
+      const id = button.dataset.id;
+
+      if (action === "edit") editProperty(id);
+      if (action === "price") quickEditPrice(id);
+      if (action === "toggle") togglePublishStatus(id);
+      if (action === "duplicate") duplicateProperty(id);
+      if (action === "delete") deleteProperty(id);
+    });
+
+    function getSafeValue(id) {
+      const element = document.getElementById(id);
+      return element ? element.value.trim() : "";
+    }
+
+    function cleanSentence(text) {
+      return String(text || "")
+        .replace(/\s+/g, " ")
+        .replace(/\s+\./g, ".")
+        .trim();
+    }
+
+    function isLandType(type) {
+      return ["Lote", "Terreno"].includes(type);
+    }
+
+    function hasUsefulValue(value) {
+      if (!value) return false;
+      const clean = String(value).trim().toLowerCase();
+      return clean && clean !== "consultar" && clean !== "no aplica" && clean !== "no posee" && clean !== "0";
+    }
+
+    function generateDescription(mode = "normal") {
+      const title = getSafeValue("title");
+      const operationValue = getSafeValue("operation");
+      const operation = operationValue === "venta" ? "en venta" : "en alquiler";
+      const type = getSafeValue("type") || "Propiedad";
+      const location = getSafeValue("location") || "Zona Oeste";
+      const zone = getSafeValue("zone") || location;
+      const rooms = Number(getSafeValue("rooms") || 0);
+      const meters = buildMetersValue();
+      const expenses = buildExpensesValue();
+      const garage = buildGarageValue();
+      const highlight = getSafeValue("highlight");
+      const bathrooms = buildBathroomsValue();
+
+      const land = isLandType(type);
+      const hasRooms = rooms > 0 && !land;
+      const hasMeters = hasUsefulValue(meters);
+      const hasBathrooms = hasUsefulValue(bathrooms) && !land;
+      const hasGarage = hasUsefulValue(garage) && !land;
+      const hasHighlight = hasUsefulValue(highlight);
+      const hasExpenses = hasUsefulValue(expenses);
+
+      const roomsText = hasRooms ? `${rooms} ambiente${rooms === 1 ? "" : "s"}` : "";
+      const locationText = zone && zone !== location ? `${zone}, ${location}` : location;
+
+      if (land) {
+        const intro = `${type} ${operation} ubicado en ${locationText}.`;
+        const surface = hasMeters ? `Cuenta con una superficie aproximada de ${meters}, ideal para evaluar distintos tipos de proyecto o inversión.` : "";
+        const highlightText = hasHighlight ? `Se destaca por ${highlight.toLowerCase()}.` : "Una alternativa interesante para quienes buscan una oportunidad en la zona.";
+        const closing = operationValue === "venta"
+          ? "Una opción a considerar para desarrollo, inversión o proyecto propio dentro del mercado local."
+          : "Una opción práctica para quienes buscan un espacio con buena ubicación y posibilidades de uso.";
+
+        if (mode === "short") return cleanSentence(`${intro} ${surface} ${highlightText}`);
+        if (mode === "premium") return cleanSentence(`${title || type} ${operation} en ${locationText}. ${surface} ${highlightText} ${closing}`);
+        return cleanSentence(`${intro} ${surface} ${highlightText} ${closing}`);
+      }
+
+      const baseIntro = `${title || type} ${operation} ubicado en ${locationText}.`;
+      const distribution = hasRooms && hasMeters
+        ? `La propiedad cuenta con ${roomsText} y una superficie aproximada de ${meters}.`
+        : hasRooms
+          ? `La propiedad cuenta con ${roomsText}, con una distribución funcional para el uso diario.`
+          : hasMeters
+            ? `Cuenta con una superficie aproximada de ${meters} y espacios bien aprovechados.`
+            : "Cuenta con ambientes funcionales y una distribución pensada para aprovechar cada espacio.";
+
+      const highlightText = hasHighlight ? `Se destaca por ${highlight.toLowerCase()}.` : "";
+      const garageText = hasGarage ? `Incluye ${garage.toLowerCase()}.` : "";
+      const bathroomText = hasBathrooms ? `Dispone de ${bathrooms.toLowerCase()}.` : "";
+
+      let expensesText = "";
+      if (expenses === "Sin expensas") {
+        expensesText = "Sin expensas, un punto muy favorable para reducir gastos mensuales.";
+      } else if (hasExpenses) {
+        expensesText = `Expensas: ${expenses}.`;
+      }
+
+      const closingSale = "Una alternativa interesante para quienes buscan una propiedad bien ubicada, con valor real dentro del mercado local.";
+      const closingRent = "Una opción práctica para quienes buscan comodidad, buena ubicación y una mudanza simple.";
+      const closing = operationValue === "venta" ? closingSale : closingRent;
+
+      if (mode === "short") return cleanSentence(`${baseIntro} ${distribution} ${highlightText} ${garageText}`);
+
+      if (mode === "premium") {
+        const premiumSale = "Ideal para quienes buscan comprar con criterio, priorizando ubicación, funcionalidad y potencial de valor.";
+        const premiumRent = "Ideal para quienes buscan alquilar una propiedad cómoda, clara y bien presentada.";
+        const premiumClosing = operationValue === "venta" ? premiumSale : premiumRent;
+        return cleanSentence(`${baseIntro} ${distribution} ${highlightText} ${garageText} ${bathroomText} ${expensesText} ${premiumClosing}`);
+      }
+
+      return cleanSentence(`${baseIntro} ${distribution} ${highlightText} ${garageText} ${bathroomText} ${expensesText} ${closing}`);
+    }
+
+    document.getElementById("generateDescriptionBtn").addEventListener("click", () => {
+      document.getElementById("description").value = generateDescription("normal");
+      showToast("Descripción generada");
+    });
+
+    document.getElementById("shortDescriptionBtn").addEventListener("click", () => {
+      document.getElementById("description").value = generateDescription("short");
+      showToast("Descripción más corta generada");
+    });
+
+    document.getElementById("premiumDescriptionBtn").addEventListener("click", () => {
+      document.getElementById("description").value = generateDescription("premium");
+      showToast("Descripción comercial generada");
+    });
+
+    function openPreview(property = null) {
+      const data = property || getFormData();
+
+      if (!data.description) {
+        data.description = generateDescription("normal");
+      }
+
+      const img = getMainImage(data);
+      const operationLabel = data.operation === "venta" ? "Venta" : "Alquiler";
+
+      document.getElementById("previewBody").innerHTML = `
+        <div class="preview-main-img">
+          <img src="${img}" alt="${data.title || "Propiedad"}">
+        </div>
+
+        <div class="preview-info">
+          <span class="tag ${data.operation === "alquiler" ? "rent" : ""}">${operationLabel}</span>
+          <br><br>
+          <h2>${data.title || "Propiedad sin título"}</h2>
+          <div class="preview-location">${data.zone || data.location}<br>${data.address || "Dirección a cargar"}</div>
+
+          <div class="preview-price">${data.price || "Consultar"}</div>
+          <div class="preview-expenses">Expensas: ${data.expenses || "Consultar"}</div>
+
+          <div class="preview-data">
+            <div><span>Tipo</span><strong>${data.type || "-"}</strong></div>
+            <div><span>Ambientes</span><strong>${data.rooms ? data.rooms + " amb." : "No aplica"}</strong></div>
+            <div><span>Superficie</span><strong>${data.meters || "-"}</strong></div>
+            <div><span>Baños</span><strong>${data.bathrooms || "-"}</strong></div>
+            <div><span>Cochera</span><strong>${data.garage || "-"}</strong></div>
+            <div><span>Destacado</span><strong>${data.highlight || "-"}</strong></div>
+          </div>
+
+          <p class="preview-description">${data.description}</p>
+        </div>
+      `;
+
+      document.getElementById("previewModal").classList.add("active");
+    }
+
+    document.getElementById("previewPropertyBtn").addEventListener("click", () => {
+      openPreview();
+    });
+
+    document.getElementById("closePreviewBtn").addEventListener("click", () => {
+      document.getElementById("previewModal").classList.remove("active");
+    });
+
+    document.getElementById("previewModal").addEventListener("click", (event) => {
+      if (event.target.id === "previewModal") {
+        document.getElementById("previewModal").classList.remove("active");
+      }
+    });
+
+    document.getElementById("resetFormBtn").addEventListener("click", () => {
+      resetForm();
+      showToast("Formulario limpio");
+    });
+
+    document.getElementById("newPropertyBtn").addEventListener("click", () => {
+      resetForm();
+      switchTab("form");
+    });
+
+    function switchTab(tab) {
+      const listPanel = document.getElementById("tabPanelList");
+      const formPanel = document.getElementById("tabPanelForm");
+      const btnList   = document.getElementById("tabBtnList");
+      const btnForm   = document.getElementById("tabBtnForm");
+
+      if (tab === "form") {
+        listPanel.classList.add("hidden");
+        formPanel.classList.remove("hidden");
+        btnList.classList.remove("active");
+        btnForm.classList.add("active");
+      } else {
+        formPanel.classList.add("hidden");
+        listPanel.classList.remove("hidden");
+        btnForm.classList.remove("active");
+        btnList.classList.add("active");
+      }
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    document.getElementById("tabBtnList").addEventListener("click", () => switchTab("list"));
+    document.getElementById("tabBtnForm").addEventListener("click", () => {
+      resetForm();
+      switchTab("form");
+    });
+
+    adminSearch.addEventListener("input", renderList);
+
+    document.getElementById("priceAmount").addEventListener("input", (event) => normalizeMoneyInput(event.target));
+    document.getElementById("expensesAmount").addEventListener("input", (event) => normalizeMoneyInput(event.target));
+
+    function toggleExpensesAmount() {
+      const currency = document.getElementById("expensesCurrency").value;
+      const amountInput = document.getElementById("expensesAmount");
+
+      if (currency === "Sin expensas" || currency === "Consultar") {
+        amountInput.value = "";
+        amountInput.disabled = true;
+        amountInput.placeholder = "No requiere monto";
+      } else {
+        amountInput.disabled = false;
+        amountInput.placeholder = "Ej: 85.000";
+      }
+    }
+
+    document.getElementById("expensesCurrency").addEventListener("change", toggleExpensesAmount);
+    toggleExpensesAmount();
+
+    document.getElementById("searchAddressBtn").addEventListener("click", () => {
+      const address = document.getElementById("address").value.trim();
+
+      if (!address) {
+        showToast("Primero escribí una dirección");
+        return;
+      }
+
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, "_blank");
+    });
+
+    document.getElementById("previewMapBtn").addEventListener("click", () => {
+      const address = document.getElementById("address").value.trim();
+
+      if (!address) {
+        showToast("Primero escribí una dirección");
+        return;
+      }
+
+      document.getElementById("mapPreviewFrame").src = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+      document.getElementById("mapPreview").classList.add("active");
+      showToast("Mapa cargado");
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      exportText.value = JSON.stringify(properties, null, 2);
+      exportBox.classList.add("active");
+      showToast("JSON generado");
+    });
+
+    document.getElementById("importBackupBtn").addEventListener("click", async () => {
+      const input = document.getElementById("importBackupFile");
+      const file = input.files && input.files[0];
+
+      if (!file) {
+        showToast("Elegí un archivo JSON");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = async () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+
+          if (!Array.isArray(parsed)) {
+            showToast("El JSON no es una lista de propiedades");
+            return;
+          }
+
+          const ok = confirm("Esto importa propiedades del backup a Supabase. ¿Continuar?");
+          if (!ok) return;
+
+          const payload = parsed.map(item => mapPropertyToDb({
+            ...item,
+            id: "",
+            publishStatus: item.publishStatus || "Borrador"
+          }));
+
+          const { error } = await supabaseClient
+            .from("properties")
+            .insert(payload);
+
+          if (error) throw error;
+
+          await fetchProperties();
+          resetForm();
+          showToast("Backup importado");
+        } catch (error) {
+          console.error(error);
+          showToast("No se pudo importar el JSON");
+        }
+      };
+
+      reader.readAsText(file);
+    });
+
+    document.getElementById("deleteAllBtn").addEventListener("click", async () => {
+      const ok = confirm("¿Seguro que querés borrar todas las propiedades de Supabase?");
+      if (!ok) return;
+
+      const ids = properties.map(property => property.id);
+
+      if (ids.length === 0) return;
+
+      const { error } = await supabaseClient
+        .from("properties")
+        .delete()
+        .in("id", ids);
+
+      if (error) {
+        console.error(error);
+        showToast("No se pudo borrar todo");
+        return;
+      }
+
+      await fetchProperties();
+      resetForm();
+      showToast("Todo borrado");
+    });
+
+
+    function getCustomLocations() {
+      try {
+        return JSON.parse(localStorage.getItem(CUSTOM_LOCATIONS_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveCustomLocations(locations) {
+      const cleanLocations = [...new Set(
+        locations
+          .map(location => String(location || "").trim())
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b, "es"));
+
+      localStorage.setItem(CUSTOM_LOCATIONS_KEY, JSON.stringify(cleanLocations));
+    }
+
+    function renderLocationOptions(selectedValue = "") {
+      const locationSelect = document.getElementById("location");
+      const customLocations = getCustomLocations();
+
+      const allLocations = [...new Set([...BASE_LOCATIONS, ...customLocations])];
+
+      locationSelect.innerHTML = allLocations
+        .map(location => `<option value="${location}">${location}</option>`)
+        .join("") + `<option value="__add_new__">+ Agregar nueva ubicación...</option>`;
+
+      if (selectedValue && !allLocations.includes(selectedValue)) {
+        saveCustomLocations([...customLocations, selectedValue]);
+        renderLocationOptions(selectedValue);
+        return;
+      }
+
+      if (selectedValue) {
+        locationSelect.value = selectedValue;
+      }
+    }
+
+    function showCustomLocationBox() {
+      document.getElementById("customLocationBox").classList.add("active");
+      document.getElementById("customLocationInput").focus();
+    }
+
+    function hideCustomLocationBox() {
+      document.getElementById("customLocationBox").classList.remove("active");
+      document.getElementById("customLocationInput").value = "";
+    }
+
+    document.getElementById("location").addEventListener("change", () => {
+      const locationSelect = document.getElementById("location");
+
+      if (locationSelect.value === "__add_new__") {
+        showCustomLocationBox();
+      } else {
+        hideCustomLocationBox();
+      }
+    });
+
+    document.getElementById("saveLocationBtn").addEventListener("click", () => {
+      const input = document.getElementById("customLocationInput");
+      const newLocation = input.value.trim();
+
+      if (!newLocation) {
+        showToast("Escribí una ubicación");
+        return;
+      }
+
+      const customLocations = getCustomLocations();
+      saveCustomLocations([...customLocations, newLocation]);
+      renderLocationOptions(newLocation);
+      hideCustomLocationBox();
+      showToast("Ubicación agregada");
+    });
+
+    document.getElementById("customLocationInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        document.getElementById("saveLocationBtn").click();
+      }
+    });
+
+    renderLocationOptions();
+
+
+        checkSession();
+  </script>
+</body>
+</html>

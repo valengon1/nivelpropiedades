@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --ink: #0a0a0a;
+    --ink-soft: #1a1a1a;
+    --gray: #6b6b6b;
+    --gray-muted: #a3a3a3;
+    --stone-light: #f7f7f6;
+    --border: #e5e5e5;
+    --white: #ffffff;
+    --max: 1200px;
+  }
+
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    color: var(--ink);
+    background: var(--white);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--ink);
+    color: var(--white);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img {
+    max-width: 100%;
+    display: block;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .container-site {
+    width: min(var(--max), calc(100% - 40px));
+    margin: 0 auto;
+  }
+
+  .section-kicker {
+    @apply text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--gray-muted)] flex items-center gap-3;
+  }
+
+  .section-kicker::before {
+    content: "";
+    @apply inline-block w-6 h-px bg-[var(--gray-muted)];
+  }
+
+  .heading-editorial {
+    @apply font-bold tracking-tight leading-tight;
+    letter-spacing: -0.04em;
+  }
+
+  .body-text {
+    @apply text-[var(--gray)] leading-relaxed;
+  }
+}
+
+@layer utilities {
+  .page-enter {
+    animation: pageEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}

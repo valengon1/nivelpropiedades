@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contacto | Nivel Propiedades</title>
+  <meta name="description" content="Contactanos en Nivel Propiedades. Encontranos en Av. Gaona 2422, Ramos Mejía. Lunes a Viernes 9 a 18 hs, Sábados 9 a 13 hs." />
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --black: #070707;
+      --gray: #666666;
+      --light-gray: #f4f4f4;
+      --border: #e4e4e4;
+      --white: #ffffff;
+      --blue: #1f6feb;
+      --max: 1180px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: "Inter", sans-serif; color: var(--black); background: var(--white); overflow-x: hidden; animation: pageIn .55s ease both; }
+    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    button { font-family: inherit; }
+    ::selection { background: var(--black); color: var(--white); }
+
+    .container { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+    .section { padding: 80px 0; }
+
+    .section-kicker { font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); margin-bottom: 12px; display: inline-flex; align-items: center; gap: 10px; }
+    .section-kicker::before { content: ""; width: 28px; height: 2px; background: var(--blue); display: inline-block; }
+    .section-title { font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.055em; line-height: 1; max-width: 760px; font-weight: 900; }
+
+    /* ===== HEADER ===== */
+    header { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: rgba(255,255,255,.96); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+    .nav { height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+    .logo { display: flex; align-items: center; height: 54px; flex-shrink: 0; }
+    .header-logo-img { height: 48px; width: auto; object-fit: contain; display: block; transition: transform .25s ease, opacity .25s ease; }
+    .logo:hover .header-logo-img { transform: translateY(-2px); opacity: .92; }
+    .nav-links { display: flex; align-items: center; gap: 28px; font-size: 14px; font-weight: 800; }
+    .nav-links a { color: #222; transition: color .2s ease; position: relative; padding: 6px 0; }
+    .nav-links a::after { content: ""; position: absolute; left: 0; bottom: 0; width: 0; height: 2px; background: var(--black); transition: width .25s ease; }
+    .nav-links a:hover { color: var(--blue); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-links a.active-page { color: var(--blue); }
+    .nav-links a.active-page::after { width: 100%; }
+    .menu-btn { display: none; border: 0; background: var(--black); color: var(--white); width: 42px; height: 42px; font-size: 18px; cursor: pointer; }
+
+    /* ===== PAGE HERO ===== */
+    .page-hero { padding-top: 82px; background: var(--light-gray); border-bottom: 1px solid var(--border); }
+    .page-hero-inner { padding: 48px 0 42px; }
+    .page-hero-title { font-size: clamp(38px, 6vw, 64px); letter-spacing: -0.065em; line-height: .93; font-weight: 900; margin: 14px 0 0; }
+    .back-link { display: flex; align-items: center; gap: 10px; color: var(--gray); font-size: 14px; font-weight: 800; transition: color .2s ease; margin-bottom: 24px; }
+    .back-link:hover { color: var(--black); }
+
+    /* ===== CONTACT PAGE ===== */
+    .contact-page-grid {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 36px;
+      align-items: stretch;
+    }
+
+    .contact-map-box {
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: var(--light-gray);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .contact-map-box iframe {
+      width: 100%;
+      flex: 1;
+      min-height: 420px;
+      border: 0;
+      display: block;
+      filter: grayscale(100%);
+      transition: filter .4s ease;
+    }
+
+    .contact-map-box:hover iframe {
+      filter: grayscale(0%);
+    }
+
+    .contact-map-caption {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray);
+    }
+
+    .contact-map-caption i {
+      color: var(--blue);
+      font-size: 16px;
+    }
+
+    .contact-info-col {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .contact-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      padding: 22px 24px;
+    }
+
+    .contact-card-title {
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--gray);
+      margin-bottom: 14px;
+    }
+
+    .contact-row {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: flex-start;
+    }
+
+    .contact-row:first-of-type { padding-top: 0; }
+    .contact-row:last-of-type { border-bottom: 0; padding-bottom: 0; }
+
+    .contact-row i {
+      color: var(--blue);
+      width: 20px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .contact-row strong {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    .contact-row span,
+    .contact-row a {
+      color: var(--gray);
+      line-height: 1.6;
+      font-size: 14px;
+      transition: color .2s ease;
+    }
+
+    .contact-row a:hover { color: var(--black); }
+
+    .hours-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .hours-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .hours-row:last-child { border-bottom: 0; padding-bottom: 0; }
+
+    .hours-day { font-weight: 800; }
+    .hours-time { color: var(--gray); font-weight: 600; }
+
+    .hours-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f0f9f4;
+      border: 1px solid #c3e6d0;
+      color: #1a7a45;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 4px 9px;
+      margin-bottom: 12px;
+    }
+
+    .hours-badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #25d366;
+      display: inline-block;
+    }
+
+    /* ===== FOOTER ===== */
+    footer { background: var(--black); color: var(--white); padding: 44px 0 24px; }
+    .footer-grid { display: grid; grid-template-columns: 1.2fr .8fr .8fr; gap: 30px; margin-bottom: 34px; }
+    footer h4 { margin-bottom: 14px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; font-weight: 900; }
+    footer p, footer a { color: #bbbbbb; line-height: 1.8; font-size: 14px; }
+    footer a:hover { color: var(--white); }
+    .footer-bottom { border-top: 1px solid #222; padding-top: 20px; color: #888; font-size: 13px; display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+    .fade { opacity: 0; transform: translateY(18px); transition: opacity .65s ease, transform .65s ease; }
+    .fade.show { opacity: 1; transform: translateY(0); }
+
+    /* ===== FLOATING SOCIALS ===== */
+    .floating-socials { position: fixed; right: 20px; bottom: 20px; display: grid; gap: 12px; z-index: 1000; }
+    .floating-btn { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; font-size: 28px; box-shadow: 0 12px 35px rgba(0,0,0,.22); transition: transform .22s ease, box-shadow .22s ease; position: relative; }
+    .floating-btn:hover { transform: translateY(-3px); box-shadow: 0 16px 42px rgba(0,0,0,.28); }
+    .whatsapp { background: #25d366; color: #06170c; }
+    .instagram { background: var(--black); color: var(--white); }
+    .whatsapp::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 1px solid rgba(37,211,102,.45); animation: whatsappPulse 1.8s ease infinite; }
+    .instagram::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 1px solid rgba(0,0,0,.22); animation: instagramPulse 2.2s ease infinite; }
+    @keyframes whatsappPulse { 0% { transform: scale(.86); opacity: .9; } 100% { transform: scale(1.25); opacity: 0; } }
+    @keyframes instagramPulse { 0% { transform: scale(.86); opacity: .65; } 100% { transform: scale(1.22); opacity: 0; } }
+
+    /* ===== TABLET ===== */
+    @media (max-width: 1000px) {
+      .nav-links { position: fixed; top: 82px; left: 0; right: 0; background: var(--white); border-bottom: 1px solid var(--border); padding: 20px; display: none; flex-direction: column; align-items: flex-start; gap: 18px; }
+      .nav-links.active { display: flex; }
+      .menu-btn { display: block; }
+      .contact-page-grid { grid-template-columns: 1fr; gap: 28px; }
+    }
+
+    /* ===== MOBILE ===== */
+    @media (max-width: 650px) {
+      .nav { height: 68px; }
+      .logo { height: 44px; }
+      .header-logo-img { height: 38px; }
+      .menu-btn { width: 40px; height: 40px; font-size: 16px; }
+      .nav-links { top: 68px; padding: 18px 20px 22px; gap: 4px; box-shadow: 0 24px 45px rgba(0,0,0,.08); }
+      .nav-links a { width: 100%; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
+      .nav-links a:last-child { border-bottom: 0; }
+      .page-hero { padding-top: 68px; }
+      .page-hero-inner { padding: 30px 0 26px; }
+      .page-hero-title { font-size: clamp(36px, 11vw, 52px); }
+      .section { padding: 48px 0; }
+      .contact-map-box iframe { min-height: 280px; }
+      .contact-card { padding: 20px; }
+      .hours-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; margin-bottom: 28px; }
+      .footer-bottom { display: block; line-height: 1.7; }
+      .floating-socials { right: 14px; bottom: 14px; gap: 10px; }
+      .floating-btn { width: 52px; height: 52px; font-size: 25px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header id="siteHeader">
+    <div class="container nav">
+      <a href="index.html" class="logo" aria-label="Nivel Propiedades">
+        <img src="logo-header.png" alt="Nivel Propiedades" class="header-logo-img">
+      </a>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Inicio</a>
+        <a href="index.html">Venta</a>
+        <a href="index.html">Alquileres</a>
+        <a href="desarrolladores.html">Desarrolladores</a>
+        <a href="nosotros.html">Sobre nosotros</a>
+        <a href="contacto.html" class="active-page">Contacto</a>
+      </nav>
+      <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="page-hero">
+    <div class="container page-hero-inner">
+      <a href="index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Volver al inicio</a>
+      <div class="section-kicker">Contacto</div>
+      <h1 class="page-hero-title">Encontranos.</h1>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="contact-page-grid">
+
+        <div class="contact-map-box fade">
+          <iframe
+            src="https://maps.google.com/maps?q=Av+Gaona+2422+Ramos+Mejia+Buenos+Aires+Argentina&output=embed&hl=es&z=16"
+            allowfullscreen=""
+            loading="lazy"
+            title="Ubicación Nivel Propiedades">
+          </iframe>
+          <div class="contact-map-caption">
+            <i class="fa-solid fa-location-dot"></i>
+            Av. Gaona 2422, Ramos Mejía, Buenos Aires
+          </div>
+        </div>
+
+        <div class="contact-info-col">
+
+          <div class="contact-card fade">
+            <div class="contact-card-title">Horarios de atención</div>
+            <div class="hours-badge">Abierto ahora</div>
+            <div class="hours-grid">
+              <div class="hours-row">
+                <span class="hours-day">Lunes a Viernes</span>
+                <span class="hours-time">10:00 – 13:00 y 17:00 – 19:00 hs</span>
+              </div>
+              <div class="hours-row">
+                <span class="hours-day">Sábados</span>
+                <span class="hours-time" style="color:#ccc;">Cerrado</span>
+              </div>
+              <div class="hours-row">
+                <span class="hours-day">Domingos</span>
+                <span class="hours-time" style="color:#ccc;">Cerrado</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="contact-card fade">
+            <div class="contact-card-title">Cómo contactarnos</div>
+
+            <div class="contact-row">
+              <i class="fa-brands fa-whatsapp"></i>
+              <div>
+                <strong>WhatsApp</strong>
+                <a href="https://wa.me/5491166838275" target="_blank">11 6683-8275</a>
+              </div>
+            </div>
+
+            <div class="contact-row">
+              <i class="fa-solid fa-phone"></i>
+              <div>
+                <strong>Teléfono</strong>
+                <a href="tel:+541146540122">4654-0122</a>
+              </div>
+            </div>
+
+            <div class="contact-row">
+              <i class="fa-solid fa-envelope"></i>
+              <div>
+                <strong>Mail</strong>
+                <a href="mailto:nivelconsultas@gmail.com">nivelconsultas@gmail.com</a>
+              </div>
+            </div>
+
+            <div class="contact-row">
+              <i class="fa-solid fa-location-dot"></i>
+              <div>
+                <strong>Dirección</strong>
+                <span>Av. Gaona 2422, Ramos Mejía, Buenos Aires</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="floating-socials">
+    <a href="https://wa.me/5491166838275" target="_blank" class="floating-btn whatsapp" aria-label="WhatsApp">
+      <i class="fa-brands fa-whatsapp"></i>
+    </a>
+    <a href="https://www.instagram.com/nivelpropiedades" target="_blank" class="floating-btn instagram" aria-label="Instagram">
+      <i class="fa-brands fa-instagram"></i>
+    </a>
+  </div>
+
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h4>Nivel Propiedades</h4>
+          <p>Negocios Inmobiliarios en Ramos Mejía. Venta, alquiler y administración de propiedades en Zona Oeste.</p>
+        </div>
+        <div>
+          <h4>Secciones</h4>
+          <p><a href="index.html">Inicio</a></p>
+          <p><a href="index.html">Venta</a></p>
+          <p><a href="index.html">Alquileres</a></p>
+          <p><a href="desarrolladores.html">Desarrolladores</a></p>
+          <p><a href="nosotros.html">Sobre nosotros</a></p>
+          <p><a href="contacto.html">Contacto</a></p>
+        </div>
+        <div>
+          <h4>Contacto</h4>
+          <p>Av. Gaona 2422, Ramos Mejía</p>
+          <p><a href="tel:+541146540122">4654-0122</a></p>
+          <p><a href="https://wa.me/5491166838275" target="_blank">11 6683-8275</a></p>
+          <p><a href="mailto:nivelconsultas@gmail.com">nivelconsultas@gmail.com</a></p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year"></span> Nivel Propiedades. Todos los derechos reservados.</span>
+        <span>Negocios Inmobiliarios</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const menuBtn = document.getElementById("menuBtn");
+    const navLinks = document.getElementById("navLinks");
+    const year = document.getElementById("year");
+
+    if (year) year.textContent = new Date().getFullYear();
+
+    menuBtn.addEventListener("click", () => {
+      navLinks.classList.toggle("active");
+      const icon = menuBtn.querySelector("i");
+      icon.classList.toggle("fa-bars");
+      icon.classList.toggle("fa-xmark");
+    });
+
+    navLinks.querySelectorAll("a").forEach(link => {
+      link.addEventListener("click", () => {
+        navLinks.classList.remove("active");
+        const icon = menuBtn.querySelector("i");
+        icon.classList.add("fa-bars");
+        icon.classList.remove("fa-xmark");
+      });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add("show");
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".fade").forEach(item => observer.observe(item));
+
+    // Badge abierto/cerrado según horarios reales (Lun-Vie: 10-13 y 17-19)
+    const badge = document.querySelector(".hours-badge");
+    if (badge) {
+      const now = new Date();
+      const day = now.getDay(); // 0=dom, 1=lun...6=sab
+      const hour = now.getHours() + now.getMinutes() / 60;
+      const isWeekday = day >= 1 && day <= 5;
+      const isOpen = isWeekday && ((hour >= 10 && hour < 13) || (hour >= 17 && hour < 19));
+      if (!isOpen) {
+        badge.textContent = "Cerrado ahora";
+        badge.style.background = "#fef2f2";
+        badge.style.borderColor = "#fecaca";
+        badge.style.color = "#b91c1c";
+      }
+    }
+  </script>
+
+</body>
+</html>
