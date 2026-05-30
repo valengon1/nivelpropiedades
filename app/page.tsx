@@ -129,21 +129,18 @@ export default function HomePage() {
     return () => window.removeEventListener("nivel-go-home", handler);
   }, []);
 
-  // ── Hash routing ─────────────────────────────────────────────────────────
+  // ── Hash routing (initial load only — no hashchange listener to avoid stale closures) ──
   useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash.replace("#", "");
-      if (hash.startsWith("propiedad-")) {
-        const id = hash.replace("propiedad-", "");
-        const prop = properties.find((p) => String(p.id) === id);
-        if (prop) openDetail(prop);
-      } else if (!hash || hash === "inicio") {
-        setView("main");
+    if (!properties.length) return;
+    const hash = window.location.hash.replace("#", "");
+    if (hash.startsWith("propiedad-")) {
+      const id = hash.replace("propiedad-", "");
+      const prop = properties.find((p) => String(p.id) === id);
+      if (prop) {
+        setSelectedProperty(prop);
+        setView("detail");
       }
-    };
-    window.addEventListener("hashchange", handleHash);
-    handleHash();
-    return () => window.removeEventListener("hashchange", handleHash);
+    }
   }, [properties]); // eslint-disable-line
 
   // ── Derived ──────────────────────────────────────────────────────────────
