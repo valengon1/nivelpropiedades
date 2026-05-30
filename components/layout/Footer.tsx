@@ -1,15 +1,33 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const footerLinks = [
-  { label: "Inicio", href: "/" },
-  { label: "Venta", href: "/?op=venta" },
-  { label: "Alquileres", href: "/?op=alquiler" },
-  { label: "Desarrolladores", href: "/desarrolladores" },
-  { label: "Sobre nosotros", href: "/nosotros" },
-  { label: "Contacto", href: "/contacto" },
+  { label: "Inicio", href: "/", op: null },
+  { label: "Venta", href: "/", op: "venta" },
+  { label: "Alquileres", href: "/", op: "alquiler" },
+  { label: "Desarrolladores", href: "/desarrolladores", op: null },
+  { label: "Sobre nosotros", href: "/nosotros", op: null },
+  { label: "Contacto", href: "/contacto", op: null },
 ];
 
 export function Footer() {
+  const pathname = usePathname();
+
+  const handleClick = (link: typeof footerLinks[0], e: React.MouseEvent) => {
+    if (link.op) {
+      e.preventDefault();
+      if (pathname !== "/") {
+        window.location.href = `/?op=${link.op}`;
+      } else {
+        window.dispatchEvent(new CustomEvent("nivel-quick-search", { detail: { op: link.op } }));
+      }
+    } else if (link.href === "/" && pathname === "/") {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent("nivel-go-home"));
+    }
+  };
   const year = new Date().getFullYear();
 
   return (
@@ -32,8 +50,9 @@ export function Footer() {
             <div className="grid gap-2">
               {footerLinks.map((link) => (
                 <Link
-                  key={link.href}
+                  key={link.label}
                   href={link.href}
+                  onClick={(e) => handleClick(link, e)}
                   className="text-[#888] text-sm hover:text-white transition-colors duration-200"
                 >
                   {link.label}
