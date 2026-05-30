@@ -60,24 +60,23 @@ const TYPES = ["Departamento", "Casa", "PH", "Lote", "Terreno", "Local", "Oficin
 
 // ── Watermark ────────────────────────────────────────────────────────────
 async function applyWatermark(srcUrl: string): Promise<Blob> {
-  // Fetch image as blob → local object URL (avoids canvas CORS taint)
-  const res = await fetch(srcUrl, { cache: "no-cache" });
-  if (!res.ok) throw new Error(`fetch ${res.status}`);
-  const imgBlob = await res.blob();
-  const objUrl = URL.createObjectURL(imgBlob);
-
   return new Promise((resolve, reject) => {
     const img = new window.Image();
-    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("img load error")); };
+    img.crossOrigin = "anonymous";
+    img.onerror = () => reject(new Error("ERROR: no se pudo cargar la imagen: " + srcUrl.slice(0, 60)));
     img.onload = () => {
       const wm = new window.Image();
-      wm.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("watermark load error")); };
+      wm.onerror = () => reject(new Error("ERROR: no se pudo cargar watermark.png"));
       wm.onload = () => {
         try {
           const canvas = document.createElement("canvas");
           canvas.width = img.naturalWidth;
           canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext("2d")!;
+          if (!canvas.width || !canvas.height) {
+            reject(new Error("ERROR: imagen con dimensiones 0")); return;
+          }
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { reject(new Error("ERROR: no hay contexto canvas")); return; }
           ctx.drawImage(img, 0, 0);
           const wmW = canvas.width * 0.4;
           const wmH = wmW * (wm.naturalHeight / wm.naturalWidth);
@@ -85,18 +84,17 @@ async function applyWatermark(srcUrl: string): Promise<Blob> {
           ctx.drawImage(wm, (canvas.width - wmW) / 2, (canvas.height - wmH) / 2, wmW, wmH);
           ctx.globalAlpha = 1;
           canvas.toBlob((blob) => {
-            URL.revokeObjectURL(objUrl);
-            if (!blob) { reject(new Error("canvas toBlob null")); return; }
+            if (!blob) { reject(new Error("ERROR: canvas.toBlob devolvió null (canvas tainted?)")); return; }
             resolve(blob);
           }, "image/jpeg", 0.92);
         } catch (e) {
-          URL.revokeObjectURL(objUrl);
           reject(e);
         }
       };
-      wm.src = window.location.origin + "/watermark.png";
+      wm.src = "/watermark.png";
     };
-    img.src = objUrl;
+    // Cache-bust to avoid CORS cached responses
+    img.src = srcUrl + (srcUrl.includes("?") ? "&" : "?") + "_cb=" + Date.now();
   });
 }
 
@@ -419,7 +417,9 @@ export default function AdminPage() {
         newUrls.push(`${data.publicUrl}?wm=1`);
         ok++;
       } catch (e) {
-        console.error("watermark error", e);
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("watermark error", msg);
+        show(msg);
         newUrls.push(imgs[i]);
       }
     }
