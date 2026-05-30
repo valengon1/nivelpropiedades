@@ -8,7 +8,7 @@ interface PropertySearchProps {
   filters: PropertyFilters;
   locations: string[];
   onChange: (filters: PropertyFilters) => void;
-  onSearch: () => void;
+  onSearch: (overrideFilters?: PropertyFilters) => void;
 }
 
 const PROPERTY_TYPES = ["Departamento", "Casa", "PH", "Lote", "Terreno", "Local", "Oficina"];
@@ -16,6 +16,12 @@ const PROPERTY_TYPES = ["Departamento", "Casa", "PH", "Lote", "Terreno", "Local"
 export function PropertySearch({ filters, locations, onChange, onSearch }: PropertySearchProps) {
   const set = (key: keyof PropertyFilters, value: string) =>
     onChange({ ...filters, [key]: value });
+
+  const setAndSearch = (key: keyof PropertyFilters, value: string) => {
+    const newFilters = { ...filters, [key]: value };
+    onChange(newFilters);
+    onSearch(newFilters);
+  };
 
   return (
     <div className="bg-white border border-[#e5e5e5] p-5">
@@ -41,7 +47,7 @@ export function PropertySearch({ filters, locations, onChange, onSearch }: Prope
         {/* Operation */}
         <select
           value={filters.operation}
-          onChange={(e) => set("operation", e.target.value)}
+          onChange={(e) => setAndSearch("operation", e.target.value)}
           className="h-11 border border-[#e5e5e5] bg-white px-3 text-sm text-[#0a0a0a] focus:border-[#0a0a0a] focus:outline-none appearance-none"
         >
           <option value="all">Operación</option>
@@ -52,7 +58,7 @@ export function PropertySearch({ filters, locations, onChange, onSearch }: Prope
         {/* Type */}
         <select
           value={filters.type}
-          onChange={(e) => set("type", e.target.value)}
+          onChange={(e) => setAndSearch("type", e.target.value)}
           className="h-11 border border-[#e5e5e5] bg-white px-3 text-sm text-[#0a0a0a] focus:border-[#0a0a0a] focus:outline-none appearance-none"
         >
           <option value="all">Tipo</option>
@@ -66,7 +72,7 @@ export function PropertySearch({ filters, locations, onChange, onSearch }: Prope
         {/* Location */}
         <select
           value={filters.location}
-          onChange={(e) => set("location", e.target.value)}
+          onChange={(e) => setAndSearch("location", e.target.value)}
           className="h-11 border border-[#e5e5e5] bg-white px-3 text-sm text-[#0a0a0a] focus:border-[#0a0a0a] focus:outline-none appearance-none"
         >
           <option value="all">Todas las zonas</option>
@@ -84,7 +90,7 @@ export function PropertySearch({ filters, locations, onChange, onSearch }: Prope
           {["all", "1", "2", "3", "4", "5"].map((r) => (
             <button
               key={r}
-              onClick={() => set("rooms", r)}
+              onClick={() => setAndSearch("rooms", r)}
               className={`h-7 px-3 text-[10px] font-semibold tracking-[0.08em] uppercase border transition-colors ${
                 filters.rooms === r
                   ? "border-[#0a0a0a] bg-[#0a0a0a] text-white"
@@ -97,7 +103,7 @@ export function PropertySearch({ filters, locations, onChange, onSearch }: Prope
         </div>
 
         <button
-          onClick={onSearch}
+          onClick={() => onSearch()}
           className="h-9 px-6 bg-[#0a0a0a] text-white text-[11px] font-semibold tracking-[0.08em] uppercase hover:bg-[#1a1a1a] transition-colors flex-shrink-0"
         >
           Buscar

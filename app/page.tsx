@@ -48,12 +48,12 @@ export default function HomePage() {
   const lastViewRef = useRef<ActiveView>("main");
   const searchResultsRef = useRef<Property[]>([]);
   const lastScrollYRef = useRef(0);
-  const selfHashChange = useRef(false);
 
-  // All programmatic hash changes go through here so the listener can ignore them
+  // All programmatic hash changes go through here.
+  // Uses pushState so the popstate listener (which fires only on back/forward) is never triggered by our own calls.
   const setHash = (hash: string) => {
-    selfHashChange.current = true;
-    window.location.hash = hash;
+    const base = window.location.pathname + window.location.search;
+    window.history.pushState(null, "", hash ? `${base}#${hash}` : base);
   };
 
   // ── Load properties ─────────────────────────────────────────────────────
@@ -156,7 +156,6 @@ export default function HomePage() {
       setSelectedProperty(null);
       setFilters(INITIAL_FILTERS);
       window.history.replaceState(null, "", "/");
-      setHash("");
       if (counterHasAnimated) setCounter46(46);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
@@ -175,9 +174,8 @@ export default function HomePage() {
       if (prop) { setSelectedProperty(prop); setView("detail"); }
     }
 
-    // Browser back/forward button handler
-    const handleHash = () => {
-      if (selfHashChange.current) { selfHashChange.current = false; return; }
+    // Browser back/forward handler — fires only on browser navigation, NOT on our pushState calls
+    const handleNavigation = () => {
       const hash = window.location.hash.replace("#", "");
       if (!hash || hash === "inicio") {
         setView("main");
@@ -186,11 +184,15 @@ export default function HomePage() {
       } else if (hash === "busqueda") {
         if (searchResultsRef.current.length > 0) setView("search");
         else setView("main");
+      } else if (hash.startsWith("propiedad-")) {
+        const propId = hash.replace("propiedad-", "");
+        const prop = properties.find((p) => String(p.id) === propId);
+        if (prop) { setSelectedProperty(prop); setView("detail"); }
       }
     };
 
-    window.addEventListener("hashchange", handleHash);
-    return () => window.removeEventListener("hashchange", handleHash);
+    window.addEventListener("popstate", handleNavigation);
+    return () => window.removeEventListener("popstate", handleNavigation);
   }, [properties]); // eslint-disable-line
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -226,8 +228,15 @@ export default function HomePage() {
     if (f.location && f.location !== "all") qs.set("loc", f.location);
     if (f.rooms && f.rooms !== "all") qs.set("rooms", f.rooms);
     const qStr = qs.toString();
-    window.history.replaceState(null, "", qStr ? `/?${qStr}` : "/");
-    setHash("busqueda");
+    const newUrl = `${qStr ? `/?${qStr}` : "/"}#busqueda`;
+    if (view === "search") {
+      // Already in search view: replace current entry so back-button skips filter changes
+      window.history.replaceState(null, "", newUrl);
+    } else {
+      // Entering search for the first time: push a new entry so back-button returns to previous view
+      window.history.replaceState(null, "", qStr ? `/?${qStr}` : "/");
+      setHash("busqueda");
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -258,7 +267,7 @@ export default function HomePage() {
       setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
     } else {
       setView("main");
-      setHash("inicio");
+      window.history.replaceState(null, "", "/");
       window.dispatchEvent(new CustomEvent("nivel-go-home"));
       if (counterHasAnimated) setCounter46(46);
       setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
@@ -270,7 +279,6 @@ export default function HomePage() {
     setSearchResults([]);
     setView("main");
     window.history.replaceState(null, "", "/");
-    setHash("inicio");
     setTimeout(() => document.getElementById("inicio")?.scrollIntoView({ behavior: "smooth" }), 50);
   }
 
@@ -326,7 +334,7 @@ export default function HomePage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-[#0a0a0a] mb-5" style={{ letterSpacing: "-0.03em" }}>
                 Resultados encontrados
               </h1>
-              <PropertySearch filters={filters} locations={locations} onChange={setFilters} onSearch={() => runSearch()} />
+              <PropertySearch filters={filters} locations={locations} onChange={setFilters} onSearch={runSearch} />
             </div>
           </div>
 
@@ -440,7 +448,7 @@ export default function HomePage() {
         {/* ── SEARCH BAR ───────────────────────────────────── */}
         <section className="border-b border-[#e5e5e5]">
           <div className="container-site py-6 sm:py-8">
-            <PropertySearch filters={filters} locations={locations} onChange={setFilters} onSearch={() => runSearch()} />
+            <PropertySearch filters={filters} locations={locations} onChange={setFilters} onSearch={runSearch} />
           </div>
         </section>
 
