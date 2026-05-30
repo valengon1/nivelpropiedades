@@ -47,6 +47,13 @@ export default function HomePage() {
   const lastViewRef = useRef<ActiveView>("main");
   const searchResultsRef = useRef<Property[]>([]);
   const lastScrollYRef = useRef(0);
+  const selfHashChange = useRef(false);
+
+  // All programmatic hash changes go through here so the listener can ignore them
+  const setHash = (hash: string) => {
+    selfHashChange.current = true;
+    window.location.hash = hash;
+  };
 
   // ── Load properties ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -122,25 +129,40 @@ export default function HomePage() {
       setView("main");
       setSelectedProperty(null);
       setFilters(INITIAL_FILTERS);
-      window.location.hash = "";
+      setHash("");
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
     window.addEventListener("nivel-go-home", handler);
     return () => window.removeEventListener("nivel-go-home", handler);
   }, []);
 
-  // ── Hash routing (initial load only — no hashchange listener to avoid stale closures) ──
+  // ── Hash routing ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!properties.length) return;
-    const hash = window.location.hash.replace("#", "");
-    if (hash.startsWith("propiedad-")) {
-      const id = hash.replace("propiedad-", "");
-      const prop = properties.find((p) => String(p.id) === id);
-      if (prop) {
-        setSelectedProperty(prop);
-        setView("detail");
-      }
+
+    // Initial load: open property if hash points to one
+    const initHash = window.location.hash.replace("#", "");
+    if (initHash.startsWith("propiedad-")) {
+      const prop = properties.find((p) => String(p.id) === initHash.replace("propiedad-", ""));
+      if (prop) { setSelectedProperty(prop); setView("detail"); }
     }
+
+    // Browser back/forward button handler
+    const handleHash = () => {
+      if (selfHashChange.current) { selfHashChange.current = false; return; }
+      const hash = window.location.hash.replace("#", "");
+      if (!hash || hash === "inicio") {
+        setView("main");
+        if (counterHasAnimated) setCounter46(46);
+        window.dispatchEvent(new CustomEvent("nivel-go-home"));
+      } else if (hash === "busqueda") {
+        if (searchResultsRef.current.length > 0) setView("search");
+        else setView("main");
+      }
+    };
+
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
   }, [properties]); // eslint-disable-line
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -168,7 +190,7 @@ export default function HomePage() {
     lastScrollYRef.current = window.scrollY;
     setLastScrollY(window.scrollY);
     setView("search");
-    window.location.hash = "busqueda";
+    setHash("busqueda");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -188,18 +210,18 @@ export default function HomePage() {
     setLastScrollY(window.scrollY);
     setSelectedProperty(property);
     setView("detail");
-    window.location.hash = `propiedad-${property.id}`;
+    setHash(`propiedad-${property.id}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goBack() {
     if (lastViewRef.current === "search" && searchResultsRef.current.length > 0) {
       setView("search");
-      window.location.hash = "busqueda";
+      setHash("busqueda");
       setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
     } else {
       setView("main");
-      window.location.hash = "inicio";
+      setHash("inicio");
       window.dispatchEvent(new CustomEvent("nivel-go-home"));
       if (counterHasAnimated) setCounter46(46);
       setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
@@ -210,7 +232,7 @@ export default function HomePage() {
     setFilters(INITIAL_FILTERS);
     setSearchResults([]);
     setView("main");
-    window.location.hash = "inicio";
+    setHash("inicio");
     setTimeout(() => document.getElementById("inicio")?.scrollIntoView({ behavior: "smooth" }), 50);
   }
 
