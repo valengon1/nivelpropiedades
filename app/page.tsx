@@ -32,6 +32,7 @@ function parsePriceForSort(s: string): number {
 }
 
 let counterHasAnimated = false;
+let counterMainVisits = 0;
 
 export default function HomePage() {
   const [view, setView] = useState<ActiveView>("main");
@@ -99,12 +100,22 @@ export default function HomePage() {
 
   // ── Counter animation ─────────────────────────────────────────────────────
   useEffect(() => {
-    // Re-check after view resets to main
     if (view !== "main") return;
+    counterMainVisits++;
+
+    // Already animated before: just ensure it shows 46
+    if (counterHasAnimated) { setCounter46(46); return; }
+
+    // Second+ visit without having animated (e.g. mobile never scrolled): show 46 immediately
+    if (counterMainVisits > 1) {
+      counterHasAnimated = true;
+      setCounter46(46);
+      return;
+    }
+
+    // First visit: animate on scroll into view
     const el = counterRef.current;
     if (!el) return;
-    // Lower threshold so mobile can trigger it even with partial visibility
-    if (counterHasAnimated) { setCounter46(46); return; }
     const obs = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
@@ -114,7 +125,7 @@ export default function HomePage() {
         step();
         obs.unobserve(el);
       },
-      { threshold: 0.1 }
+      { threshold: 0.05 }
     );
     obs.observe(el);
     return () => obs.disconnect();
