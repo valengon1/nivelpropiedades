@@ -59,33 +59,44 @@ const LOCATIONS = ["Ramos Mejía", "Haedo", "Villa Sarmiento", "Ciudadela", "Vil
 const TYPES = ["Departamento", "Casa", "PH", "Lote", "Terreno", "Local", "Oficina", "Cochera", "Galpon"];
 
 // ── Watermark ────────────────────────────────────────────────────────────
-async function applyWatermark(file: File): Promise<File> {
-  return new Promise((resolve) => {
+async function applyWatermark(srcUrl: string): Promise<Blob> {
+  // Fetch image as blob → local object URL (avoids canvas CORS taint)
+  const res = await fetch(srcUrl, { cache: "no-cache" });
+  if (!res.ok) throw new Error(`fetch ${res.status}`);
+  const imgBlob = await res.blob();
+  const objUrl = URL.createObjectURL(imgBlob);
+
+  return new Promise((resolve, reject) => {
     const img = new window.Image();
-    const wm = new window.Image();
-    const url = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("img load error")); };
     img.onload = () => {
+      const wm = new window.Image();
+      wm.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("watermark load error")); };
       wm.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
-        const wmW = img.width * 0.4;
-        const wmH = wmW * (wm.height / wm.width);
-        const x = (img.width - wmW) / 2;
-        const y = (img.height - wmH) / 2;
-        ctx.globalAlpha = 0.72;
-        ctx.drawImage(wm, x, y, wmW, wmH);
-        ctx.globalAlpha = 1;
-        canvas.toBlob((blob) => {
-          URL.revokeObjectURL(url);
-          resolve(new File([blob!], file.name, { type: "image/jpeg" }));
-        }, "image/jpeg", 0.92);
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0);
+          const wmW = canvas.width * 0.4;
+          const wmH = wmW * (wm.naturalHeight / wm.naturalWidth);
+          ctx.globalAlpha = 0.72;
+          ctx.drawImage(wm, (canvas.width - wmW) / 2, (canvas.height - wmH) / 2, wmW, wmH);
+          ctx.globalAlpha = 1;
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(objUrl);
+            if (!blob) { reject(new Error("canvas toBlob null")); return; }
+            resolve(blob);
+          }, "image/jpeg", 0.92);
+        } catch (e) {
+          URL.revokeObjectURL(objUrl);
+          reject(e);
+        }
       };
-      wm.src = "/watermark.png";
+      wm.src = window.location.origin + "/watermark.png";
     };
-    img.src = url;
+    img.src = objUrl;
   });
 }
 
@@ -242,14 +253,22 @@ export default function AdminPage() {
   const uploadImages = async (files: File[], title: string): Promise<string[]> => {
     const urls: string[] = [];
     for (let i = 0; i < files.length; i++) {
-      const watermarked = await applyWatermark(files[i]);
-      const file = watermarked;
-      const ext = "jpg";
-      const path = `properties/${Date.now()}-${slugify(title)}-${i + 1}.${ext}`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: "3600", upsert: false });
+      const path = `properties/${Date.now()}-${slugify(title)}-${i + 1}.jpg`;
+      // Apply watermark via object URL → canvas
+      const objUrl = URL.createObjectURL(files[i]);
+      let fileToUpload: File;
+      try {
+        const blob = await applyWatermark(objUrl);
+        fileToUpload = new File([blob], path.split("/").pop()!, { type: "image/jpeg" });
+      } catch {
+        fileToUpload = files[i];
+      } finally {
+        URL.revokeObjectURL(objUrl);
+      }
+      const { error } = await supabase.storage.from(BUCKET).upload(path, fileToUpload, { cacheControl: "3600", upsert: false });
       if (error) throw new Error("No se pudo subir imagen");
       const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      urls.push(data.publicUrl);
+      urls.push(`${data.publicUrl}?wm=1`);
     }
     return urls;
   };
@@ -379,31 +398,36 @@ export default function AdminPage() {
   const handleWatermarkProperty = async (id: string | number) => {
     const prop = properties.find((x) => String(x.id) === String(id));
     if (!prop) return;
-    const imgs = prop.images?.length ? prop.images : [prop.image].filter(Boolean) as string[];
+    const imgs = (prop.images?.length ? prop.images : [prop.image].filter(Boolean) as string[]);
     if (!imgs.length) { show("Sin imágenes"); return; }
     setWatermarking(true);
     const newUrls: string[] = [];
     let ok = 0;
     for (let i = 0; i < imgs.length; i++) {
-      const src = imgs[i].split("?")[0]; // strip cache params
+      const src = imgs[i].split("?")[0];
       setWatermarkProgress(`Foto ${i + 1} de ${imgs.length}...`);
       try {
-        const res = await fetch(src);
-        const blob = await res.blob();
-        const file = new File([blob], `img-${i}.jpg`, { type: blob.type || "image/jpeg" });
-        const watermarked = await applyWatermark(file);
+        const blob = await applyWatermark(src);
+        const file = new File([blob], `wm-${i}.jpg`, { type: "image/jpeg" });
         const pathPart = src.split("/property-images/")[1];
         if (!pathPart) { newUrls.push(src); continue; }
-        await supabase.storage.from(BUCKET).remove([pathPart]);
-        await supabase.storage.from(BUCKET).upload(pathPart, watermarked, { cacheControl: "3600", upsert: true });
+        const { error: upErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(pathPart, file, { cacheControl: "3600", upsert: true });
+        if (upErr) throw upErr;
         const { data } = supabase.storage.from(BUCKET).getPublicUrl(pathPart);
         newUrls.push(`${data.publicUrl}?wm=1`);
         ok++;
-      } catch {
-        newUrls.push(src);
+      } catch (e) {
+        console.error("watermark error", e);
+        newUrls.push(imgs[i]);
       }
     }
-    await supabase.from("properties").update({ image: newUrls[0] || prop.image, images: newUrls }).eq("id", id);
+    const { error: dbErr } = await supabase
+      .from("properties")
+      .update({ image: newUrls[0] || prop.image, images: newUrls })
+      .eq("id", id);
+    if (dbErr) console.error("db update error", dbErr);
     setWatermarking(false);
     setWatermarkProgress("");
     await loadProperties();
