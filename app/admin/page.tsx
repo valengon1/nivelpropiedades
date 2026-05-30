@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
+import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { PropertyCard } from "@/components/properties/PropertyCard";
+import { PropertyDetail } from "@/components/properties/PropertyDetail";
+import { type Property } from "@/types/property";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface AdminProperty {
@@ -140,6 +144,32 @@ function mapRow(r: Record<string, unknown>): AdminProperty {
   };
 }
 
+function toProperty(p: AdminProperty): Property {
+  return {
+    id: p.id ?? 0,
+    title: p.title,
+    operation: (p.operation || "venta") as "venta" | "alquiler",
+    type: p.type,
+    location: p.location,
+    zone: p.zone,
+    address: p.address,
+    rooms: p.rooms,
+    price: p.price,
+    expenses: p.expenses,
+    meters: p.meters,
+    bathrooms: p.bathrooms,
+    garage: p.garage,
+    highlight: p.highlight,
+    details: p.details,
+    featured: p.featured,
+    image: p.image,
+    images: p.images,
+    description: p.description,
+    keywords: p.keywords,
+    publishStatus: p.publish_status,
+  };
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────
 function useToast() {
   const [toast, setToast] = useState<{ msg: string; visible: boolean }>({ msg: "", visible: false });
@@ -170,6 +200,8 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [watermarking, setWatermarking] = useState(false);
   const [watermarkProgress, setWatermarkProgress] = useState("");
+  const [previewProperty, setPreviewProperty] = useState<AdminProperty | null>(null);
+  const [previewMode, setPreviewMode] = useState<"card" | "detail">("card");
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const { toast, show } = useToast();
@@ -680,6 +712,12 @@ export default function AdminPage() {
                           {p.featured && <span className="ml-2 text-[#0a0a0a] font-bold">★</span>}
                         </p>
                         <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => { setPreviewProperty(p); setPreviewMode("card"); }}
+                            className="h-7 px-3 border border-[#e5e5e5] text-[10px] font-semibold uppercase tracking-wide text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors"
+                          >
+                            Vista previa
+                          </button>
                           <button onClick={() => startEdit(p)} className="h-7 px-3 border border-[#e5e5e5] text-[10px] font-semibold uppercase tracking-wide text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors">
                             Editar
                           </button>
@@ -1023,6 +1061,51 @@ export default function AdminPage() {
       {toast.visible && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#0a0a0a] text-white text-sm px-5 py-3 font-medium z-50 shadow-lg">
           {toast.msg}
+        </div>
+      )}
+
+      {/* Vista previa modal */}
+      {previewProperty && (
+        <div className="fixed inset-0 z-[200] bg-black/70 flex flex-col overflow-hidden">
+          {/* Modal header */}
+          <div className="flex-shrink-0 bg-white border-b border-[#e5e5e5] flex items-center justify-between px-5 h-12">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPreviewMode("card")}
+                className={`h-7 px-4 text-[11px] font-semibold uppercase tracking-wide border transition-colors ${previewMode === "card" ? "bg-[#0a0a0a] text-white border-[#0a0a0a]" : "text-[#6b6b6b] border-[#e5e5e5] hover:border-[#0a0a0a]"}`}
+              >
+                Tarjeta
+              </button>
+              <button
+                onClick={() => setPreviewMode("detail")}
+                className={`h-7 px-4 text-[11px] font-semibold uppercase tracking-wide border transition-colors ${previewMode === "detail" ? "bg-[#0a0a0a] text-white border-[#0a0a0a]" : "text-[#6b6b6b] border-[#e5e5e5] hover:border-[#0a0a0a]"}`}
+              >
+                Detalle
+              </button>
+            </div>
+            <button onClick={() => setPreviewProperty(null)} className="w-8 h-8 flex items-center justify-center text-[#6b6b6b] hover:text-[#0a0a0a] transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Preview content */}
+          <div className="flex-1 overflow-y-auto bg-[#f7f7f6]">
+            {previewMode === "card" ? (
+              <div className="max-w-sm mx-auto pt-10 px-5 pb-10">
+                <PropertyCard
+                  property={toProperty(previewProperty)}
+                  onSelect={() => setPreviewMode("detail")}
+                />
+              </div>
+            ) : (
+              <div className="pt-[72px]">
+                <PropertyDetail
+                  property={toProperty(previewProperty)}
+                  onBack={() => setPreviewMode("card")}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
