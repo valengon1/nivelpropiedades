@@ -665,13 +665,22 @@ export default function AdminPage() {
                           <button onClick={() => handleDuplicate(p.id!)} className="h-7 px-3 border border-[#e5e5e5] text-[10px] font-semibold uppercase tracking-wide text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors">
                             Duplicar
                           </button>
-                          <button
-                            onClick={() => handleWatermarkProperty(p.id!)}
-                            disabled={watermarking}
-                            className="h-7 px-3 border border-blue-100 text-[10px] font-semibold uppercase tracking-wide text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-40"
-                          >
-                            Marca de agua
-                          </button>
+                          {(() => {
+                            const hasWm = (p.image || p.images?.[0] || "").includes("wm=1");
+                            return (
+                              <button
+                                onClick={() => !hasWm && handleWatermarkProperty(p.id!)}
+                                disabled={watermarking || hasWm}
+                                className={`h-7 px-3 border text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                                  hasWm
+                                    ? "border-[#e5e5e5] text-[#c0c0c0] bg-[#f7f7f6] cursor-default"
+                                    : "border-blue-100 text-blue-600 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-40"
+                                }`}
+                              >
+                                {hasWm ? "Con marca ✓" : "Marca de agua"}
+                              </button>
+                            );
+                          })()}
                           <button onClick={() => handleDelete(p.id!)} className="h-7 px-3 border border-red-100 text-[10px] font-semibold uppercase tracking-wide text-red-600 hover:border-red-500 hover:bg-red-50 transition-colors">
                             Eliminar
                           </button>
