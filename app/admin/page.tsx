@@ -401,6 +401,7 @@ export default function AdminPage() {
     setWatermarking(true);
     const newUrls: string[] = [];
     let ok = 0;
+    let firstError = "";
     for (let i = 0; i < imgs.length; i++) {
       const src = imgs[i].split("?")[0];
       setWatermarkProgress(`Foto ${i + 1} de ${imgs.length}...`);
@@ -418,8 +419,8 @@ export default function AdminPage() {
         ok++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error("watermark error", msg);
-        show(msg);
+        console.error("watermark error foto", i + 1, msg);
+        if (!firstError) firstError = `Error foto ${i + 1}: ${msg}`;
         newUrls.push(imgs[i]);
       }
     }
@@ -431,7 +432,7 @@ export default function AdminPage() {
     setWatermarking(false);
     setWatermarkProgress("");
     await loadProperties();
-    show(`Marca de agua aplicada (${ok}/${imgs.length} fotos)`);
+    show(firstError || `Marca de agua aplicada (${ok}/${imgs.length} fotos)`);
   };
 
   const quickPrice = async (id: string | number) => {
