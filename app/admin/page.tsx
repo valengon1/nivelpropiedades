@@ -408,8 +408,10 @@ export default function AdminPage() {
       try {
         const blob = await applyWatermark(src);
         const file = new File([blob], `wm-${i}.jpg`, { type: "image/jpeg" });
-        const pathPart = src.split("/property-images/")[1];
-        if (!pathPart) { newUrls.push(src); continue; }
+        // Use existing path if already in our storage, otherwise create a new one
+        const pathPart = src.includes("/property-images/")
+          ? src.split("/property-images/")[1].split("?")[0]
+          : `properties/wm-${Date.now()}-${i}.jpg`;
         const { error: upErr } = await supabase.storage
           .from(BUCKET)
           .upload(pathPart, file, { cacheControl: "3600", upsert: true });
