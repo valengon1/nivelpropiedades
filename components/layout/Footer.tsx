@@ -95,7 +95,7 @@ export function Footer() {
           <span className="text-[#555] text-xs">
             © {year} Nivel Propiedades. Todos los derechos reservados.
           </span>
-          <span className="text-[#555] text-xs">Negocios Inmobiliarios</span>
+          <span className="text-[#555] text-xs">Negocios Inmobiliarios · Mat. 588</span>
         </div>
       </div>
     </footer>

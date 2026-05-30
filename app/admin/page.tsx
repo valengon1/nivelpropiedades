@@ -159,6 +159,8 @@ export default function AdminPage() {
   const [opFilter, setOpFilter] = useState<"all" | "venta" | "alquiler">("all");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [watermarking, setWatermarking] = useState(false);
+  const [watermarkProgress, setWatermarkProgress] = useState("");
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const { toast, show } = useToast();
@@ -374,6 +376,40 @@ export default function AdminPage() {
     show("Propiedad duplicada");
   };
 
+  const handleWatermarkProperty = async (id: string | number) => {
+    const prop = properties.find((x) => String(x.id) === String(id));
+    if (!prop) return;
+    const imgs = prop.images?.length ? prop.images : [prop.image].filter(Boolean) as string[];
+    if (!imgs.length) { show("Sin imágenes"); return; }
+    setWatermarking(true);
+    const newUrls: string[] = [];
+    let ok = 0;
+    for (let i = 0; i < imgs.length; i++) {
+      const src = imgs[i].split("?")[0]; // strip cache params
+      setWatermarkProgress(`Foto ${i + 1} de ${imgs.length}...`);
+      try {
+        const res = await fetch(src);
+        const blob = await res.blob();
+        const file = new File([blob], `img-${i}.jpg`, { type: blob.type || "image/jpeg" });
+        const watermarked = await applyWatermark(file);
+        const pathPart = src.split("/property-images/")[1];
+        if (!pathPart) { newUrls.push(src); continue; }
+        await supabase.storage.from(BUCKET).remove([pathPart]);
+        await supabase.storage.from(BUCKET).upload(pathPart, watermarked, { cacheControl: "3600", upsert: true });
+        const { data } = supabase.storage.from(BUCKET).getPublicUrl(pathPart);
+        newUrls.push(`${data.publicUrl}?wm=1`);
+        ok++;
+      } catch {
+        newUrls.push(src);
+      }
+    }
+    await supabase.from("properties").update({ image: newUrls[0] || prop.image, images: newUrls }).eq("id", id);
+    setWatermarking(false);
+    setWatermarkProgress("");
+    await loadProperties();
+    show(`Marca de agua aplicada (${ok}/${imgs.length} fotos)`);
+  };
+
   const quickPrice = async (id: string | number) => {
     const p = properties.find((x) => String(x.id) === String(id));
     if (!p) return;
@@ -566,6 +602,13 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {watermarking && (
+              <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-100 text-[12px] text-blue-700 font-medium flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                Aplicando marca de agua… {watermarkProgress}
+              </div>
+            )}
+
             {filtered.length === 0 ? (
               <div className="py-16 text-center border border-dashed border-[#e5e5e5]">
                 <p className="text-[#a3a3a3] text-sm">No hay propiedades para mostrar.</p>
@@ -621,6 +664,13 @@ export default function AdminPage() {
                           </button>
                           <button onClick={() => handleDuplicate(p.id!)} className="h-7 px-3 border border-[#e5e5e5] text-[10px] font-semibold uppercase tracking-wide text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors">
                             Duplicar
+                          </button>
+                          <button
+                            onClick={() => handleWatermarkProperty(p.id!)}
+                            disabled={watermarking}
+                            className="h-7 px-3 border border-blue-100 text-[10px] font-semibold uppercase tracking-wide text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-40"
+                          >
+                            Marca de agua
                           </button>
                           <button onClick={() => handleDelete(p.id!)} className="h-7 px-3 border border-red-100 text-[10px] font-semibold uppercase tracking-wide text-red-600 hover:border-red-500 hover:bg-red-50 transition-colors">
                             Eliminar

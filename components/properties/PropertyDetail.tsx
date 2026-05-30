@@ -105,11 +105,6 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
                     priority
                   />
                 )}
-                {/* Watermark */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/watermark.png" alt="" className="w-2/5 h-auto" style={{ opacity: 0.72 }} />
-                </div>
                 <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 text-white text-[10px] font-semibold tracking-wide px-2 py-1">
                   <Maximize2 size={11} />
                   {images.length > 1 && <span>{thumbIndex + 1}/{images.length}</span>}

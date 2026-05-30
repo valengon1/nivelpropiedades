@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:nivelpropiedades.kitepropcrm.com)",
+      "Bash(mkdir -p /Users/valentingonzalez/Documents/nivelprop/supabase/functions/sync-kiteprop)",
+      "Bash(mkdir -p /Users/valentingonzalez/Documents/nivelprop/supabase/migrations)",
+      "Bash(curl -s \"https://nivelpropiedades.kitepropcrm.com/\")",
+      "Bash(supabase functions *)",
+      "Bash(supabase --version)",
+      "Bash(curl -s -X POST https://mclnbxiwmoilpjczuwpy.supabase.co/functions/v1/sync-kiteprop -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkxNDYxOSwiZXhwIjoyMDkzNDkwNjE5fQ.e82DJaG4GYqmTJ42o1dpzrS5s1TVvsDKFWTH1hbsEOI' -H 'Content-Type: application/json' -d '{}')",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X POST https://mclnbxiwmoilpjczuwpy.supabase.co/rest/v1/rpc/exec_sql -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkxNDYxOSwiZXhwIjoyMDkzNDkwNjE5fQ.e82DJaG4GYqmTJ42o1dpzrS5s1TVvsDKFWTH1hbsEOI' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkxNDYxOSwiZXhwIjoyMDkzNDkwNjE5fQ.e82DJaG4GYqmTJ42o1dpzrS5s1TVvsDKFWTH1hbsEOI' -H 'Content-Type: application/json')",
+      "Bash(curl -s -X PATCH https://mclnbxiwmoilpjczuwpy.supabase.co/rest/v1/properties?address=eq.Av.%20Gaona%202422 -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkxNDYxOSwiZXhwIjoyMDkzNDkwNjE5fQ.e82DJaG4GYqmTJ42o1dpzrS5s1TVvsDKFWTH1hbsEOI' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkxNDYxOSwiZXhwIjoyMDkzNDkwNjE5fQ.e82DJaG4GYqmTJ42o1dpzrS5s1TVvsDKFWTH1hbsEOI' -H 'Content-Type: application/json' -H 'Prefer: return=representation,count=exact' -d '{\"address\": \"\"}')",
+      "Bash(python3 -c \"import sys,json; d=sys.stdin.read\\(\\); print\\(f'Respuesta: {d[:200]}'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(len\\(d\\), 'restantes con Gaona 2422'\\)\")",
+      "Bash(curl -s 'https://mclnbxiwmoilpjczuwpy.supabase.co/rest/v1/properties?kiteprop_id=eq.513224&select=title,address' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkxNDYxOSwiZXhwIjoyMDkzNDkwNjE5fQ.e82DJaG4GYqmTJ42o1dpzrS5s1TVvsDKFWTH1hbsEOI' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkxNDYxOSwiZXhwIjoyMDkzNDkwNjE5fQ.e82DJaG4GYqmTJ42o1dpzrS5s1TVvsDKFWTH1hbsEOI')",
+      "Bash(curl -s 'https://mclnbxiwmoilpjczuwpy.supabase.co/rest/v1/properties?id=eq.52bb51fa-e55d-4888-bd31-33fe21e22021&select=expenses,price' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbG5ieGl3bW9pbHBqY3p1d3B5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTQ2MTksImV4cCI6MjA5MzQ5MDYxOX0.9uGcwJQB5YaqM7_acKay8r7VI4q2pKbip2wezWp4M5w')"
+    ]
+  }
+}
