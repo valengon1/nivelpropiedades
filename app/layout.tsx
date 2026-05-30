@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { FloatingSocials } from "@/components/layout/FloatingSocials";
+import { ClientShell } from "@/components/layout/ClientShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,10 +34,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={inter.variable}>
       <body className={`${inter.className} antialiased`}>
-        <Header />
-        <main className="pt-[72px]">{children}</main>
-        <Footer />
-        <FloatingSocials />
+        <ClientShell>{children}</ClientShell>
       </body>
     </html>
   );

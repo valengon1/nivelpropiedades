@@ -360,7 +360,7 @@ export default function AdminPage() {
 
   // ── Filtered list ─────────────────────────────────────────────────────────
   const filtered = properties.filter((p) => {
-    const t = `${p.title} ${p.type} ${p.location} ${p.zone} ${p.price}`.toLowerCase();
+    const t = `${p.title} ${p.type} ${p.location} ${p.zone} ${p.address} ${p.price}`.toLowerCase();
     return !search || t.includes(search.toLowerCase());
   });
 
@@ -451,7 +451,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-[#f7f7f6] pb-20">
       {/* Admin header */}
-      <div className="bg-white border-b border-[#e5e5e5] sticky top-[72px] z-20">
+      <div className="bg-white border-b border-[#e5e5e5] sticky top-0 z-20">
         <div className="max-w-[1300px] mx-auto px-5 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold tracking-[0.1em] uppercase text-[#0a0a0a]">
