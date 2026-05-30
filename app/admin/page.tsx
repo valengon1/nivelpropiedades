@@ -58,6 +58,37 @@ const AUTH_KEY = "nivel_supabase_admin_last_activity";
 const LOCATIONS = ["Ramos Mejía", "Haedo", "Villa Sarmiento", "Ciudadela", "Villa Luzuriaga", "Morón"];
 const TYPES = ["Departamento", "Casa", "PH", "Lote", "Terreno", "Local", "Oficina", "Cochera", "Galpon"];
 
+// ── Watermark ────────────────────────────────────────────────────────────
+async function applyWatermark(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    const wm = new window.Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      wm.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        const wmW = img.width * 0.4;
+        const wmH = wmW * (wm.height / wm.width);
+        const x = (img.width - wmW) / 2;
+        const y = (img.height - wmH) / 2;
+        ctx.globalAlpha = 0.72;
+        ctx.drawImage(wm, x, y, wmW, wmH);
+        ctx.globalAlpha = 1;
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          resolve(new File([blob!], file.name, { type: "image/jpeg" }));
+        }, "image/jpeg", 0.92);
+      };
+      wm.src = "/watermark.png";
+    };
+    img.src = url;
+  });
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────
 function formatThousands(v: string): string {
   const digits = String(v || "").replace(/\D/g, "");
@@ -209,8 +240,9 @@ export default function AdminPage() {
   const uploadImages = async (files: File[], title: string): Promise<string[]> => {
     const urls: string[] = [];
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const ext = file.name.split(".").pop() || "jpg";
+      const watermarked = await applyWatermark(files[i]);
+      const file = watermarked;
+      const ext = "jpg";
       const path = `properties/${Date.now()}-${slugify(title)}-${i + 1}.${ext}`;
       const { error } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: "3600", upsert: false });
       if (error) throw new Error("No se pudo subir imagen");

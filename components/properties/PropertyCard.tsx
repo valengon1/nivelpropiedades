@@ -49,6 +49,11 @@ export function PropertyCard({ property, onSelect, index = 0 }: PropertyCardProp
           className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
+        {/* Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/watermark.png" alt="" className="w-1/2 h-auto" style={{ opacity: 0.72 }} />
+        </div>
         <div className="absolute top-3 left-3">
           <Badge variant={property.operation === "venta" ? "sale" : "rental"}>
             {operationLabel}

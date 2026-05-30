@@ -92,6 +92,11 @@ export function PropertyLightbox({
                 />
               </motion.div>
             </AnimatePresence>
+            {/* Watermark */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/watermark.png" alt="" className="w-2/5 h-auto" style={{ opacity: 0.72 }} />
+            </div>
           </div>
 
           <button
