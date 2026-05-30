@@ -75,14 +75,23 @@ export default function HomePage() {
     load();
   }, []);
 
-  // ── Read ?op= URL param after properties load ────────────────────────────
+  // ── Restore filters from URL on load ────────────────────────────────────
   useEffect(() => {
     if (loading || !properties.length) return;
-    const params = new URLSearchParams(window.location.search);
-    const op = params.get("op");
-    if (op === "venta" || op === "alquiler") {
-      window.history.replaceState({}, "", "/");
-      const newFilters = { ...INITIAL_FILTERS, operation: op };
+    const p = new URLSearchParams(window.location.search);
+    const op = p.get("op") || "";
+    const kw = p.get("q") || "";
+    const type = p.get("type") || "";
+    const loc = p.get("loc") || "";
+    const rooms = p.get("rooms") || "";
+    if (op || kw || type || loc || rooms) {
+      const newFilters: PropertyFilters = {
+        operation: op || "all",
+        keyword: kw,
+        type: type || "all",
+        location: loc || "all",
+        rooms: rooms || "all",
+      };
       setFilters(newFilters);
       runSearchWithFilters(newFilters, properties);
     }
@@ -190,9 +199,15 @@ export default function HomePage() {
     lastScrollYRef.current = window.scrollY;
     setLastScrollY(window.scrollY);
     setView("search");
-    // Persist op filter in URL so page reload restores the view
-    const opParam = (f.operation === "venta" || f.operation === "alquiler") ? `?op=${f.operation}` : "";
-    window.history.replaceState(null, "", `/${opParam}`);
+    // Persist all active filters in URL so the link is shareable
+    const qs = new URLSearchParams();
+    if (f.operation && f.operation !== "all") qs.set("op", f.operation);
+    if (f.keyword) qs.set("q", f.keyword);
+    if (f.type && f.type !== "all") qs.set("type", f.type);
+    if (f.location && f.location !== "all") qs.set("loc", f.location);
+    if (f.rooms && f.rooms !== "all") qs.set("rooms", f.rooms);
+    const qStr = qs.toString();
+    window.history.replaceState(null, "", qStr ? `/?${qStr}` : "/");
     setHash("busqueda");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
