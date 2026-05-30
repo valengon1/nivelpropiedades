@@ -84,7 +84,7 @@ async function applyWatermark(srcUrl: string): Promise<Blob> {
           ctx.drawImage(img, 0, 0);
           const wmW = canvas.width * 0.4;
           const wmH = wmW * (wm.naturalHeight / wm.naturalWidth);
-          ctx.globalAlpha = 0.72;
+          ctx.globalAlpha = 0.65;
           ctx.drawImage(wm, (canvas.width - wmW) / 2, (canvas.height - wmH) / 2, wmW, wmH);
           ctx.globalAlpha = 1;
           canvas.toBlob((blob) => {
@@ -440,16 +440,21 @@ export default function AdminPage() {
       try {
         const blob = await applyWatermark(src);
         const file = new File([blob], `wm-${i}.jpg`, { type: "image/jpeg" });
-        // Use existing path if already in our storage, otherwise create a new one
-        const pathPart = src.includes("/property-images/")
+        // Always use a NEW path to avoid CDN serving the cached old image
+        const oldPath = src.includes("/property-images/")
           ? src.split("/property-images/")[1].split("?")[0]
+          : null;
+        const newPath = oldPath
+          ? oldPath.replace(/(\.[^.]+)$/, `-wm${Date.now()}$1`)
           : `properties/wm-${Date.now()}-${i}.jpg`;
         const { error: upErr } = await supabase.storage
           .from(BUCKET)
-          .upload(pathPart, file, { cacheControl: "3600", upsert: true });
+          .upload(newPath, file, { cacheControl: "3600", upsert: false });
         if (upErr) throw upErr;
-        const { data } = supabase.storage.from(BUCKET).getPublicUrl(pathPart);
+        const { data } = supabase.storage.from(BUCKET).getPublicUrl(newPath);
         newUrls.push(`${data.publicUrl}?wm=1`);
+        // Delete the old file to avoid storage bloat
+        if (oldPath) supabase.storage.from(BUCKET).remove([oldPath]);
         ok++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
