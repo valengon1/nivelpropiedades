@@ -95,6 +95,10 @@ export default function HomePage() {
       };
       setFilters(newFilters);
       runSearchWithFilters(newFilters, properties);
+      // Tell the Header which nav link to highlight (fromUrl flag prevents double search)
+      if (op === "venta" || op === "alquiler") {
+        window.dispatchEvent(new CustomEvent("nivel-quick-search", { detail: { op, fromUrl: true } }));
+      }
     }
   }, [loading, properties]); // eslint-disable-line
 
@@ -134,7 +138,9 @@ export default function HomePage() {
   // ── Custom event: nav Venta / Alquileres ────────────────────────────────
   useEffect(() => {
     const handler = (e: Event) => {
-      const { op } = (e as CustomEvent<{ op: string }>).detail;
+      const ev = e as CustomEvent<{ op: string; fromUrl?: boolean }>;
+      if (ev.detail?.fromUrl) return; // dispatched only for Header highlight, already searching
+      const { op } = ev.detail;
       const newFilters = { ...INITIAL_FILTERS, operation: op };
       setFilters(newFilters);
       runSearchWithFilters(newFilters, properties);
@@ -149,7 +155,9 @@ export default function HomePage() {
       setView("main");
       setSelectedProperty(null);
       setFilters(INITIAL_FILTERS);
+      window.history.replaceState(null, "", "/");
       setHash("");
+      if (counterHasAnimated) setCounter46(46);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
     window.addEventListener("nivel-go-home", handler);
