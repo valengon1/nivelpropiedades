@@ -41,10 +41,12 @@ export default function HomePage() {
   const [searchResults, setSearchResults] = useState<Property[]>([]);
   const [sortOrder, setSortOrder] = useState("default");
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [lastView, setLastView] = useState<ActiveView>("main");
   const [lastScrollY, setLastScrollY] = useState(0);
   const [counter46, setCounter46] = useState(counterHasAnimated ? 46 : 0);
   const counterRef = useRef<HTMLSpanElement>(null);
+  const lastViewRef = useRef<ActiveView>("main");
+  const searchResultsRef = useRef<Property[]>([]);
+  const lastScrollYRef = useRef(0);
 
   // ── Load properties ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -163,8 +165,10 @@ export default function HomePage() {
         (f.operation === "all" || p.operation === f.operation)
       );
     });
+    searchResultsRef.current = results;
     setSearchResults(results);
     setSortOrder("default");
+    lastScrollYRef.current = window.scrollY;
     setLastScrollY(window.scrollY);
     setView("search");
     window.location.hash = "busqueda";
@@ -182,8 +186,9 @@ export default function HomePage() {
   }
 
   function openDetail(property: Property) {
+    lastScrollYRef.current = window.scrollY;
+    lastViewRef.current = view;
     setLastScrollY(window.scrollY);
-    setLastView(view);
     setSelectedProperty(property);
     setView("detail");
     window.location.hash = `propiedad-${property.id}`;
@@ -191,14 +196,16 @@ export default function HomePage() {
   }
 
   function goBack() {
-    if (lastView === "search" && searchResults.length > 0) {
+    if (lastViewRef.current === "search" && searchResultsRef.current.length > 0) {
       setView("search");
       window.location.hash = "busqueda";
-      setTimeout(() => window.scrollTo({ top: lastScrollY, behavior: "smooth" }), 50);
+      setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
     } else {
       setView("main");
       window.location.hash = "inicio";
-      setTimeout(() => window.scrollTo({ top: lastScrollY, behavior: "smooth" }), 50);
+      window.dispatchEvent(new CustomEvent("nivel-go-home"));
+      if (counterHasAnimated) setCounter46(46);
+      setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
     }
   }
 
