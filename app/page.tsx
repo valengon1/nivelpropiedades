@@ -190,6 +190,9 @@ export default function HomePage() {
     lastScrollYRef.current = window.scrollY;
     setLastScrollY(window.scrollY);
     setView("search");
+    // Persist op filter in URL so page reload restores the view
+    const opParam = (f.operation === "venta" || f.operation === "alquiler") ? `?op=${f.operation}` : "";
+    window.history.replaceState(null, "", `/${opParam}`);
     setHash("busqueda");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -232,6 +235,7 @@ export default function HomePage() {
     setFilters(INITIAL_FILTERS);
     setSearchResults([]);
     setView("main");
+    window.history.replaceState(null, "", "/");
     setHash("inicio");
     setTimeout(() => document.getElementById("inicio")?.scrollIntoView({ behavior: "smooth" }), 50);
   }
