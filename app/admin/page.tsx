@@ -125,6 +125,7 @@ export default function AdminPage() {
   const [form, setForm] = useState<AdminProperty>(EMPTY_PROPERTY);
   const [editingId, setEditingId] = useState<string | number | null>(null);
   const [search, setSearch] = useState("");
+  const [opFilter, setOpFilter] = useState<"all" | "venta" | "alquiler">("all");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -361,7 +362,9 @@ export default function AdminPage() {
   // ── Filtered list ─────────────────────────────────────────────────────────
   const filtered = properties.filter((p) => {
     const t = `${p.title} ${p.type} ${p.location} ${p.zone} ${p.address} ${p.price}`.toLowerCase();
-    return !search || t.includes(search.toLowerCase());
+    const matchesSearch = !search || t.includes(search.toLowerCase());
+    const matchesOp = opFilter === "all" || p.operation === opFilter;
+    return matchesSearch && matchesOp;
   });
 
   const stats = {
@@ -500,7 +503,7 @@ export default function AdminPage() {
         {/* ── LIST TAB ──────────────────────────────────── */}
         {tab === "list" && (
           <div>
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-6">
               <input
                 type="text"
                 placeholder="Buscar propiedad..."
@@ -508,6 +511,21 @@ export default function AdminPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-10 w-full max-w-sm border border-[#e5e5e5] bg-white px-4 text-sm focus:border-[#0a0a0a] focus:outline-none"
               />
+              <div className="flex items-center gap-1">
+                {(["all", "venta", "alquiler"] as const).map((op) => (
+                  <button
+                    key={op}
+                    onClick={() => setOpFilter(op)}
+                    className={`h-10 px-4 text-[11px] font-semibold uppercase tracking-wide border transition-colors ${
+                      opFilter === op
+                        ? "bg-[#0a0a0a] text-white border-[#0a0a0a]"
+                        : "bg-white text-[#6b6b6b] border-[#e5e5e5] hover:border-[#0a0a0a] hover:text-[#0a0a0a]"
+                    }`}
+                  >
+                    {op === "all" ? "Todos" : op === "venta" ? "Venta" : "Alquiler"}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={startNew}
                 className="h-10 px-5 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.08em] uppercase hover:bg-[#1a1a1a] transition-colors flex-shrink-0"
