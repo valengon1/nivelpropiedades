@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 import { PropertyDetail } from "@/components/properties/PropertyDetail";
 import { type Property } from "@/types/property";
+import { AdminSolicitudes } from "@/components/solicitudes/AdminSolicitudes";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface AdminProperty {
@@ -191,7 +192,8 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState(false);
   const [properties, setProperties] = useState<AdminProperty[]>([]);
-  const [tab, setTab] = useState<"list" | "form">("list");
+  const [tab, setTab] = useState<"list" | "form" | "solicitudes">("list");
+  const [adminEmail, setAdminEmail] = useState("");
   const [form, setForm] = useState<AdminProperty>(EMPTY_PROPERTY);
   const [editingId, setEditingId] = useState<string | number | null>(null);
   const [search, setSearch] = useState("");
@@ -275,6 +277,7 @@ export default function AdminPage() {
     refreshActivity();
     setScreen("app");
     setTab("list");
+    setAdminEmail(email);
     show("Acceso correcto");
     await loadProperties();
   };
@@ -630,6 +633,14 @@ export default function AdminPage() {
           >
             {editingId ? "Editar propiedad" : "Nueva propiedad"}
           </button>
+          <button
+            onClick={() => setTab("solicitudes")}
+            className={`h-10 px-5 text-[11px] font-semibold tracking-[0.08em] uppercase border-b-2 transition-colors ${
+              tab === "solicitudes" ? "border-[#0a0a0a] text-[#0a0a0a]" : "border-transparent text-[#a3a3a3] hover:text-[#6b6b6b]"
+            }`}
+          >
+            Solicitudes de datos
+          </button>
         </div>
 
         {/* ── LIST TAB ──────────────────────────────────── */}
@@ -762,6 +773,11 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ── SOLICITUDES TAB ───────────────────────────── */}
+        {tab === "solicitudes" && (
+          <AdminSolicitudes adminEmail={adminEmail} />
         )}
 
         {/* ── FORM TAB ──────────────────────────────────── */}

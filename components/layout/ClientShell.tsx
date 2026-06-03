@@ -8,7 +8,7 @@ import { FloatingSocials } from "./FloatingSocials";
 export function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/admin")) {
+  if (pathname.startsWith("/admin") || pathname.startsWith("/ficha")) {
     return <>{children}</>;
   }
 
