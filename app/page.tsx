@@ -79,6 +79,8 @@ export default function HomePage() {
   // ── Restore filters from URL on load ────────────────────────────────────
   useEffect(() => {
     if (loading || !properties.length) return;
+    // If the hash points to a specific property, let the hash routing effect handle it
+    if (window.location.hash.replace("#", "").startsWith("propiedad-")) return;
     const p = new URLSearchParams(window.location.search);
     const op = p.get("op") || "";
     const kw = p.get("q") || "";
