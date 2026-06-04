@@ -5,6 +5,15 @@ import { Camera, Upload, RotateCcw, Check, Loader2 } from "lucide-react";
 import { detectDocumentCorners, preloadOpenCV } from "@/lib/opencvLoader";
 import type { Corners, Point } from "@/lib/opencvLoader";
 
+// ── Guide frame constants ──────────────────────────────────────
+// ID card: 85.6 × 53.98 mm (ISO 7810 CR80)
+const GUIDE_W_RATIO    = 0.82;
+const GUIDE_ASPECT     = 85.6 / 53.98;          // ≈ 1.586
+const CONTAINER_ASPECT = 4 / 3;
+const GUIDE_H_RATIO    = (GUIDE_W_RATIO / GUIDE_ASPECT) * CONTAINER_ASPECT; // ≈ 0.689
+const GUIDE_X_RATIO    = (1 - GUIDE_W_RATIO) / 2;  // ≈ 0.09
+const GUIDE_Y_RATIO    = (1 - GUIDE_H_RATIO) / 2;  // ≈ 0.155
+
 // ── Image enhancement utilities ───────────────────────────────
 
 function clamp(v: number): number {
@@ -219,8 +228,9 @@ function loadImageToCanvas(file: File): Promise<HTMLCanvasElement> {
   });
 }
 
-function finalizeCanvas(canvas: HTMLCanvasElement, corners: Corners | null): HTMLCanvasElement {
-  const work = corners ? warpPerspective(canvas, corners) : simpleCrop(canvas);
+// alreadyCropped = true skips warp/simpleCrop (camera guide already framed the doc)
+function finalizeCanvas(canvas: HTMLCanvasElement, corners: Corners | null, alreadyCropped = false): HTMLCanvasElement {
+  const work = alreadyCropped ? canvas : (corners ? warpPerspective(canvas, corners) : simpleCrop(canvas));
   const ctx  = work.getContext("2d")!;
   const imgData = ctx.getImageData(0, 0, work.width, work.height);
   autoLevels(imgData.data);
@@ -237,6 +247,226 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
       "image/jpeg", 0.93
     );
   });
+}
+
+// ── In-app camera with document guide overlay ──────────────────
+
+interface CaptureResult {
+  canvas: HTMLCanvasElement;
+  /** Guide frame in video pixel coordinates (for fallback crop when OpenCV fails) */
+  guidePx: { x: number; y: number; w: number; h: number };
+}
+
+interface CameraViewProps {
+  onCapture: (result: CaptureResult) => void;
+  onCancel: () => void;
+}
+
+function CameraView({ onCapture, onCancel }: CameraViewProps) {
+  const videoRef     = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const streamRef    = useRef<MediaStream | null>(null);
+  const [ready, setReady]       = useState(false);
+  const [camError, setCamError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCamError("La cámara no está disponible en este dispositivo o navegador.");
+      return;
+    }
+    navigator.mediaDevices
+      .getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width:  { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      })
+      .then((stream) => {
+        if (!active) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        const v = videoRef.current;
+        if (v) {
+          v.srcObject = stream;
+          v.onloadedmetadata = () =>
+            v.play()
+              .then(() => { if (active) setReady(true); })
+              .catch(() => {});
+        }
+      })
+      .catch(() => {
+        if (active) setCamError("No se pudo acceder a la cámara. Usá 'Subir archivo' para continuar.");
+      });
+    return () => {
+      active = false;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  const capture = useCallback(() => {
+    const video     = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container || !ready) return;
+
+    const vW = video.videoWidth;
+    const vH = video.videoHeight;
+    const dW = container.clientWidth;
+    const dH = container.clientHeight;
+
+    // Guide frame in display pixels (centered)
+    const gDW = dW * GUIDE_W_RATIO;
+    const gDH = gDW / GUIDE_ASPECT;
+    const gDX = (dW - gDW) / 2;
+    const gDY = (dH - gDH) / 2;
+
+    // Map display → video pixel coordinates (object-fit: cover)
+    let scale: number, hOff: number, vOff: number;
+    if (vW / vH > dW / dH) {
+      scale = vH / dH;
+      hOff  = (vW - dW * scale) / 2;
+      vOff  = 0;
+    } else {
+      scale = vW / dW;
+      hOff  = 0;
+      vOff  = (vH - dH * scale) / 2;
+    }
+
+    const guidePx = {
+      x: gDX * scale + hOff,
+      y: gDY * scale + vOff,
+      w: gDW * scale,
+      h: gDH * scale,
+    };
+
+    // Capture full video frame (OpenCV will scan it for edge detection)
+    const canvas = document.createElement("canvas");
+    canvas.width  = vW;
+    canvas.height = vH;
+    canvas.getContext("2d")!.drawImage(video, 0, 0, vW, vH);
+
+    onCapture({ canvas, guidePx });
+  }, [ready, onCapture]);
+
+  return (
+    <div className="space-y-3">
+      <div
+        ref={containerRef}
+        className="relative w-full overflow-hidden bg-black"
+        style={{ aspectRatio: String(CONTAINER_ASPECT) }}
+      >
+        {/* Live video */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* Document guide overlay */}
+        {ready && (
+          <div className="absolute inset-0 pointer-events-none select-none">
+            {/* Dark strips outside guide frame */}
+            <div
+              className="absolute top-0 left-0 right-0 bg-black/55"
+              style={{ height: `${GUIDE_Y_RATIO * 100}%` }}
+            />
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-black/55"
+              style={{ height: `${GUIDE_Y_RATIO * 100}%` }}
+            />
+            <div
+              className="absolute bg-black/55"
+              style={{
+                top:    `${GUIDE_Y_RATIO * 100}%`,
+                bottom: `${GUIDE_Y_RATIO * 100}%`,
+                left:   0,
+                width:  `${GUIDE_X_RATIO * 100}%`,
+              }}
+            />
+            <div
+              className="absolute bg-black/55"
+              style={{
+                top:    `${GUIDE_Y_RATIO * 100}%`,
+                bottom: `${GUIDE_Y_RATIO * 100}%`,
+                right:  0,
+                width:  `${GUIDE_X_RATIO * 100}%`,
+              }}
+            />
+
+            {/* Guide frame */}
+            <div
+              className="absolute"
+              style={{
+                left:   `${GUIDE_X_RATIO * 100}%`,
+                top:    `${GUIDE_Y_RATIO * 100}%`,
+                width:  `${GUIDE_W_RATIO * 100}%`,
+                height: `${GUIDE_H_RATIO * 100}%`,
+              }}
+            >
+              {/* Thin border */}
+              <div className="absolute inset-0 border border-white/40" />
+              {/* Corner brackets — top-left */}
+              <div className="absolute top-0 left-0 w-7 h-7 border-t-[3px] border-l-[3px] border-white" />
+              {/* top-right */}
+              <div className="absolute top-0 right-0 w-7 h-7 border-t-[3px] border-r-[3px] border-white" />
+              {/* bottom-left */}
+              <div className="absolute bottom-0 left-0 w-7 h-7 border-b-[3px] border-l-[3px] border-white" />
+              {/* bottom-right */}
+              <div className="absolute bottom-0 right-0 w-7 h-7 border-b-[3px] border-r-[3px] border-white" />
+            </div>
+
+            {/* Instruction text */}
+            <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+              <span className="bg-black/65 text-white text-[11px] font-medium px-3 py-1.5 rounded-full tracking-wide">
+                Centra el DNI dentro del recuadro
+              </span>
+            </div>
+          </div>
+        )}
+
+        {!ready && !camError && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 size={28} className="animate-spin text-white" />
+          </div>
+        )}
+
+        {camError && (
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            <p className="text-white text-center text-[12px] leading-relaxed">{camError}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex items-center gap-2 h-11 px-4 border border-[#e8e8e4] text-[12px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors"
+        >
+          Cancelar
+        </button>
+        {!camError ? (
+          <button
+            type="button"
+            onClick={capture}
+            disabled={!ready}
+            className="flex-1 flex items-center justify-center gap-2 h-11 bg-[#0a0a0a] text-white text-[12px] font-bold hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+          >
+            <Camera size={16} /> Tomar foto
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 flex items-center justify-center gap-2 h-11 bg-[#0a0a0a] text-white text-[12px] font-bold hover:bg-[#1a1a1a] transition-colors"
+          >
+            Volver
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ── Manual corner editor ───────────────────────────────────────
@@ -357,7 +587,6 @@ function ManualCornersEditor({ imageUrl, naturalW, naturalH, onApply, onSkip, on
             viewBox={`0 0 ${dispSize.w} ${dispSize.h}`}
             xmlns="http://www.w3.org/2000/svg"
           >
-            {/* Document boundary polygon */}
             <polygon
               points={`${corners.tl.x},${corners.tl.y} ${corners.tr.x},${corners.tr.y} ${corners.br.x},${corners.br.y} ${corners.bl.x},${corners.bl.y}`}
               fill="rgba(59,130,246,0.08)"
@@ -366,12 +595,10 @@ function ManualCornersEditor({ imageUrl, naturalW, naturalH, onApply, onSkip, on
               strokeDasharray="6 3"
             />
 
-            {/* Corner handles */}
             {handles.map((key) => {
               const pos = corners[key];
               return (
                 <g key={key}>
-                  {/* Transparent hit area (larger for easier touch targeting) */}
                   <circle
                     cx={pos.x}
                     cy={pos.y}
@@ -382,7 +609,6 @@ function ManualCornersEditor({ imageUrl, naturalW, naturalH, onApply, onSkip, on
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                   />
-                  {/* Visual handle */}
                   <circle
                     cx={pos.x}
                     cy={pos.y}
@@ -392,7 +618,6 @@ function ManualCornersEditor({ imageUrl, naturalW, naturalH, onApply, onSkip, on
                     strokeWidth="2.5"
                     style={{ pointerEvents: "none" }}
                   />
-                  {/* Corner cross */}
                   <line
                     x1={pos.x - 4} y1={pos.y}
                     x2={pos.x + 4} y2={pos.y}
@@ -448,7 +673,7 @@ interface Props {
   disabled?: boolean;
 }
 
-type Stage = "idle" | "preparing" | "processing" | "manual" | "preview" | "done";
+type Stage = "idle" | "camera" | "preparing" | "processing" | "manual" | "preview" | "done";
 
 // ── Main component ─────────────────────────────────────────────
 
@@ -461,30 +686,32 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
   const [error, setError]               = useState("");
 
   const origCanvas = useRef<HTMLCanvasElement | null>(null);
-  const cameraRef  = useRef<HTMLInputElement>(null);
   const fileRef    = useRef<HTMLInputElement>(null);
 
   const label = tipo === "frente" ? "DNI Frente" : "DNI Dorso";
 
-  // Begin loading OpenCV WASM as soon as the component mounts so it's
-  // ready (or near-ready) when the user selects an image.
   useEffect(() => {
     preloadOpenCV().catch(() => {});
   }, []);
 
-  // Apply corners (or null for simpleCrop), enhance, and move to preview stage.
   const applyAndPreview = useCallback(async (
     canvas: HTMLCanvasElement,
-    corners: Corners | null
+    corners: Corners | null,
+    alreadyCropped = false
   ) => {
     setStage("processing");
-    setStatusMsg(corners ? "Corrigiendo perspectiva…" : "Recortando documento…");
+    if (corners) {
+      setStatusMsg("Corrigiendo perspectiva…");
+    } else if (alreadyCropped) {
+      setStatusMsg("Mejorando imagen…");
+    } else {
+      setStatusMsg("Recortando documento…");
+    }
 
-    // Yield to let React paint the loading UI before the CPU-intensive warp
     await new Promise<void>((r) => setTimeout(r, 60));
 
     try {
-      const processed = finalizeCanvas(canvas, corners);
+      const processed = finalizeCanvas(canvas, corners, alreadyCropped);
       const blob      = await canvasToBlob(processed);
       setProcBlob(blob);
       setProcPrev(processed.toDataURL("image/jpeg", 0.93));
@@ -495,6 +722,7 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
     }
   }, []);
 
+  // File upload path — unchanged (OpenCV + manual fallback)
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
       setError("Usá un archivo JPG o PNG.");
@@ -521,7 +749,7 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
       try {
         corners = await detectDocumentCorners(canvas);
       } catch {
-        // OpenCV failed to load (e.g., offline) — fall through to manual mode
+        // OpenCV unavailable — fall through
       }
 
       if (corners) {
@@ -532,6 +760,41 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
     } catch {
       setError("No se pudo procesar la imagen. Intentá de nuevo.");
       setStage("idle");
+    }
+  }, [applyAndPreview]);
+
+  // Camera path — OpenCV on full frame; guide crop as fallback
+  const handleCameraCapture = useCallback(async ({ canvas, guidePx }: CaptureResult) => {
+    origCanvas.current = canvas;
+    setOrigPrev(canvas.toDataURL("image/jpeg", 0.85));
+    setStage("processing");
+    setStatusMsg("Detectando bordes del documento…");
+
+    await new Promise<void>((r) => setTimeout(r, 60));
+
+    let corners: Corners | null = null;
+    try {
+      corners = await detectDocumentCorners(canvas);
+    } catch {
+      // OpenCV unavailable
+    }
+
+    if (corners) {
+      await applyAndPreview(canvas, corners);
+    } else {
+      // Crop to guide frame as smart fallback
+      const { x, y, w, h } = guidePx;
+      const cropped = document.createElement("canvas");
+      cropped.width  = Math.round(w);
+      cropped.height = Math.round(h);
+      cropped.getContext("2d")!.drawImage(
+        canvas,
+        Math.round(x), Math.round(y), Math.round(w), Math.round(h),
+        0, 0, cropped.width, cropped.height
+      );
+      origCanvas.current = cropped;
+      setOrigPrev(cropped.toDataURL("image/jpeg", 0.85));
+      await applyAndPreview(cropped, null, true);
     }
   }, [applyAndPreview]);
 
@@ -585,14 +848,14 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
         {stage === "idle" && (
           <div>
             <p className="text-[12px] text-[#6b6b6b] mb-4">
-              Colocá el DNI sobre la mesa y tomá la foto. El sistema detectará
-              y recortará el documento automáticamente.
+              Colocá el DNI sobre una superficie plana y centralo dentro del
+              recuadro. El sistema corregirá la perspectiva automáticamente.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => cameraRef.current?.click()}
+                onClick={() => setStage("camera")}
                 className="flex-1 flex items-center justify-center gap-2 h-11 border border-[#0a0a0a] text-[12px] font-semibold text-[#0a0a0a] hover:bg-[#0a0a0a] hover:text-white transition-colors disabled:opacity-40"
               >
                 <Camera size={16} /> Tomar foto
@@ -610,14 +873,6 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
               <p className="mt-3 text-[12px] text-red-600 font-medium">{error}</p>
             )}
             <input
-              ref={cameraRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleInputChange}
-            />
-            <input
               ref={fileRef}
               type="file"
               accept="image/*"
@@ -625,6 +880,14 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
               onChange={handleInputChange}
             />
           </div>
+        )}
+
+        {/* ── in-app camera ──────────────────────────────────── */}
+        {stage === "camera" && (
+          <CameraView
+            onCapture={handleCameraCapture}
+            onCancel={handleRetake}
+          />
         )}
 
         {/* ── preparing / processing ─────────────────────────── */}
@@ -648,7 +911,7 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
           </div>
         )}
 
-        {/* ── manual corner editor ───────────────────────────── */}
+        {/* ── manual corner editor (file upload fallback) ────── */}
         {stage === "manual" && originalPreview && origCanvas.current && (
           <ManualCornersEditor
             imageUrl={originalPreview}
