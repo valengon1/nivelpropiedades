@@ -435,6 +435,7 @@ export default function AdminPage() {
     if (!imgs.length) { show("Sin imágenes"); return; }
     setWatermarking(true);
     const newUrls: string[] = [];
+    const oldPathsToDelete: string[] = [];
     let ok = 0;
     let firstError = "";
     for (let i = 0; i < imgs.length; i++) {
@@ -443,7 +444,6 @@ export default function AdminPage() {
       try {
         const blob = await applyWatermark(src);
         const file = new File([blob], `wm-${i}.jpg`, { type: "image/jpeg" });
-        // Always use a NEW path to avoid CDN serving the cached old image
         const oldPath = src.includes("/property-images/")
           ? src.split("/property-images/")[1].split("?")[0]
           : null;
@@ -456,8 +456,7 @@ export default function AdminPage() {
         if (upErr) throw upErr;
         const { data } = supabase.storage.from(BUCKET).getPublicUrl(newPath);
         newUrls.push(`${data.publicUrl}?wm=1`);
-        // Delete the old file to avoid storage bloat
-        if (oldPath) supabase.storage.from(BUCKET).remove([oldPath]);
+        if (oldPath) oldPathsToDelete.push(oldPath);
         ok++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -470,7 +469,24 @@ export default function AdminPage() {
       .from("properties")
       .update({ image: newUrls[0] || prop.image, images: newUrls })
       .eq("id", id);
-    if (dbErr) console.error("db update error", dbErr);
+    if (dbErr) {
+      show("Error al guardar en base de datos");
+      setWatermarking(false);
+      setWatermarkProgress("");
+      return;
+    }
+    // Only delete old files after confirming the DB was updated, and only if no
+    // other property still references them (duplicated properties share URLs).
+    if (oldPathsToDelete.length) {
+      const allOtherUrls = properties
+        .filter((x) => String(x.id) !== String(id))
+        .flatMap((x) => (x.images?.length ? x.images : [x.image].filter(Boolean) as string[]))
+        .map((u) => u.split("?")[0]);
+      const safeToDelete = oldPathsToDelete.filter(
+        (p) => !allOtherUrls.some((u) => u.includes(p))
+      );
+      if (safeToDelete.length) supabase.storage.from(BUCKET).remove(safeToDelete);
+    }
     setWatermarking(false);
     setWatermarkProgress("");
     await loadProperties();

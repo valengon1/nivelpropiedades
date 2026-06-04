@@ -704,7 +704,10 @@ function hasChanges(kite: KiteProperty, db: DbProperty): boolean {
     if (fieldChanged(label, a, b)) changed = true;
   }
 
-  if (imagesChanged(kite.kiteImages, db.images ?? [])) {
+  // Skip image comparison if watermarked — watermarked URLs will always differ from KiteProp URLs.
+  const dbImgs = db.images ?? (db.image ? [db.image] : []);
+  const watermarked = dbImgs.some((u) => u.includes("wm=1"));
+  if (!watermarked && imagesChanged(kite.kiteImages, db.images ?? [])) {
     console.log(`[SYNC]   ↳ 'images': ${db.images?.length ?? 0} → ${kite.kiteImages.length} imágenes`);
     changed = true;
   }
@@ -899,22 +902,30 @@ async function syncAll(
       // ── ACTUALIZAR ─────────────────────────────────────────────────────────
       console.log(`[SYNC] ✎ propiedad actualizada: "${kite.title}" (KP${kite.kitepropId})`);
 
-      let finalImages = kite.kiteImages; // Siempre tomar las URLs actuales de KiteProp
-      if (uploadImages && imagesChanged(kite.kiteImages, existing.images ?? [])) {
-        const uploaded = await uploadPropertyImages(
-          supabase,
-          kite.kitepropId,
-          kite.kiteImages,
-          dry
-        );
-        if (uploaded.length > 0) {
-          finalImages = uploaded;
+      // If images were manually watermarked, preserve them — never overwrite with KiteProp URLs.
+      const existingImgs = existing.images ?? (existing.image ? [existing.image] : []);
+      const isWatermarked = existingImgs.some((u) => u.includes("wm=1"));
+
+      let finalImages = isWatermarked ? existingImgs : kite.kiteImages;
+      if (!isWatermarked) {
+        if (uploadImages && imagesChanged(kite.kiteImages, existingImgs)) {
+          const uploaded = await uploadPropertyImages(
+            supabase,
+            kite.kitepropId,
+            kite.kiteImages,
+            dry
+          );
+          if (uploaded.length > 0) {
+            finalImages = uploaded;
+            result.imageUpdates.push(kite.kitepropId);
+            console.log(`[SYNC] 🖼 imágenes actualizadas: KP${kite.kitepropId}`);
+          }
+        } else if (imagesChanged(kite.kiteImages, existingImgs)) {
           result.imageUpdates.push(kite.kitepropId);
-          console.log(`[SYNC] 🖼 imágenes actualizadas: KP${kite.kitepropId}`);
+          console.log(`[SYNC] 🖼 imágenes actualizadas (CDN): KP${kite.kitepropId}`);
         }
-      } else if (imagesChanged(kite.kiteImages, existing.images ?? [])) {
-        result.imageUpdates.push(kite.kitepropId);
-        console.log(`[SYNC] 🖼 imágenes actualizadas (CDN): KP${kite.kitepropId}`);
+      } else {
+        console.log(`[SYNC] 🔒 imágenes con marca preservadas: KP${kite.kitepropId}`);
       }
 
       // Preservar el status manual si fue seteado a algo específico (ej: Vendida, Reservada)
