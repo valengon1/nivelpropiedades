@@ -1,20 +1,11 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Camera, Upload, RotateCcw, Check, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { detectDocumentCorners, preloadOpenCV } from "@/lib/opencvLoader";
+import type { Corners, Point } from "@/lib/opencvLoader";
 
-interface Props {
-  tipo: "frente" | "dorso";
-  currentUrl: string;
-  onConfirm: (processedBlob: Blob, previewUrl: string) => void;
-  disabled?: boolean;
-}
-
-type Point = { x: number; y: number };
-type Corners = { tl: Point; tr: Point; br: Point; bl: Point };
-
-// ── Mejoras de imagen ─────────────────────────────────────────
+// ── Image enhancement utilities ───────────────────────────────
 
 function clamp(v: number): number {
   return Math.max(0, Math.min(255, Math.round(v)));
@@ -80,49 +71,7 @@ function applySharpen(ctx: CanvasRenderingContext2D, w: number, h: number): void
   ctx.putImageData(dst, 0, 0);
 }
 
-// ── Detección IA de esquinas ──────────────────────────────────
-
-async function detectCornersAI(
-  canvas: HTMLCanvasElement
-): Promise<Corners | null> {
-  try {
-    // Reducir a máx 700px para que el payload sea liviano (~80KB)
-    const maxDim = 700;
-    let sw = canvas.width, sh = canvas.height;
-    const s = maxDim / Math.max(sw, sh);
-    if (s < 1) { sw = Math.round(sw * s); sh = Math.round(sh * s); }
-
-    const small = document.createElement("canvas");
-    small.width = sw; small.height = sh;
-    small.getContext("2d")!.drawImage(canvas, 0, 0, sw, sh);
-    const base64 = small.toDataURL("image/jpeg", 0.85).split(",")[1];
-
-    const { data, error } = await supabase.functions.invoke("scan-document", {
-      body: { imageBase64: base64, width: sw, height: sh },
-    });
-
-    if (error) { console.error("AI error:", error); return null; }
-    if (!data?.found) { console.warn("AI: document not found"); return null; }
-
-    const { tl, tr, bl, br } = data;
-    if (!tl || !tr || !bl || !br) return null;
-
-    // Escalar esquinas de vuelta al tamaño original del canvas
-    const scaleX = canvas.width / sw;
-    const scaleY = canvas.height / sh;
-    return {
-      tl: { x: tl.x * scaleX, y: tl.y * scaleY },
-      tr: { x: tr.x * scaleX, y: tr.y * scaleY },
-      br: { x: br.x * scaleX, y: br.y * scaleY },
-      bl: { x: bl.x * scaleX, y: bl.y * scaleY },
-    };
-  } catch (err) {
-    console.error("detectCornersAI exception:", err);
-    return null;
-  }
-}
-
-// ── Transformación de perspectiva homográfica ─────────────────
+// ── Perspective warp (homographic inverse mapping) ────────────
 
 function gaussianElim(A: number[][], b: number[]): number[] {
   const n = A.length;
@@ -167,47 +116,38 @@ function applyH(H: number[], x: number, y: number): Point {
   return { x: (H[0] * x + H[1] * y + H[2]) / w, y: (H[3] * x + H[4] * y + H[5]) / w };
 }
 
-function dist(a: Point, b: Point): number {
+function ptDist(a: Point, b: Point): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-function warpPerspective(src: HTMLCanvasElement, corners: Corners): HTMLCanvasElement {
-  // Tamaño de salida basado en distancias reales entre esquinas
-  const dstW = Math.round((dist(corners.tl, corners.tr) + dist(corners.bl, corners.br)) / 2);
-  const dstH = Math.round((dist(corners.tl, corners.bl) + dist(corners.tr, corners.br)) / 2);
-
-  // Limitar a 1600px en el lado mayor
+function warpPerspective(srcCanvas: HTMLCanvasElement, corners: Corners): HTMLCanvasElement {
+  const dstW = Math.round((ptDist(corners.tl, corners.tr) + ptDist(corners.bl, corners.br)) / 2);
+  const dstH = Math.round((ptDist(corners.tl, corners.bl) + ptDist(corners.tr, corners.br)) / 2);
   const scale = Math.min(1, 1600 / Math.max(dstW, dstH));
   const outW = Math.round(dstW * scale);
   const outH = Math.round(dstH * scale);
 
-  // H mapea destino → origen (inverse mapping)
-  const dstPts = [
+  const dstPts: Point[] = [
     { x: 0, y: 0 }, { x: outW - 1, y: 0 },
     { x: outW - 1, y: outH - 1 }, { x: 0, y: outH - 1 },
   ];
-  const srcPts = [corners.tl, corners.tr, corners.br, corners.bl].map((p) => ({
-    x: p.x * scale, y: p.y * scale, // ya no necesitamos, usamos coords orig
-  }));
-  // Usamos coords originales del src canvas
-  const srcPtsOrig = [corners.tl, corners.tr, corners.br, corners.bl];
-  const H = computeH(dstPts, srcPtsOrig);
+  const H = computeH(dstPts, [corners.tl, corners.tr, corners.br, corners.bl]);
 
-  const dst = document.createElement("canvas");
-  dst.width = outW; dst.height = outH;
+  const dst    = document.createElement("canvas");
+  dst.width    = outW;
+  dst.height   = outH;
   const dstCtx = dst.getContext("2d")!;
-
-  const srcCtx = src.getContext("2d")!;
-  const srcData = srcCtx.getImageData(0, 0, src.width, src.height);
+  const srcCtx = srcCanvas.getContext("2d")!;
+  const srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
   const dstData = dstCtx.createImageData(outW, outH);
-  const sw = src.width;
+  const sw = srcCanvas.width;
 
   for (let dy = 0; dy < outH; dy++) {
     for (let dx = 0; dx < outW; dx++) {
       const { x: sx, y: sy } = applyH(H, dx, dy);
       const sx0 = Math.floor(sx), sy0 = Math.floor(sy);
       const sx1 = sx0 + 1, sy1 = sy0 + 1;
-      if (sx0 < 0 || sy0 < 0 || sx1 >= src.width || sy1 >= src.height) continue;
+      if (sx0 < 0 || sy0 < 0 || sx1 >= srcCanvas.width || sy1 >= srcCanvas.height) continue;
       const fx = sx - sx0, fy = sy - sy0;
       const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy);
       const w01 = (1 - fx) * fy,       w11 = fx * fy;
@@ -223,13 +163,11 @@ function warpPerspective(src: HTMLCanvasElement, corners: Corners): HTMLCanvasEl
       dstData.data[di + 3] = 255;
     }
   }
-  // Limpiar srcPts sin uso
-  void srcPts;
   dstCtx.putImageData(dstData, 0, 0);
   return dst;
 }
 
-// ── Fallback: crop simple por luminosidad ─────────────────────
+// ── Luminosity-based fallback crop ────────────────────────────
 
 function simpleCrop(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const ctx = canvas.getContext("2d")!;
@@ -259,133 +197,382 @@ function simpleCrop(canvas: HTMLCanvasElement): HTMLCanvasElement {
   return out;
 }
 
-// ── Pipeline principal ────────────────────────────────────────
+// ── Image loading & finalization helpers ──────────────────────
 
-async function processDocumentImage(
-  file: File,
-  onStatus: (s: string) => void
-): Promise<{ blob: Blob; preview: string }> {
+function loadImageToCanvas(file: File): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const objUrl = URL.createObjectURL(file);
-
-    img.onload = async () => {
-      URL.revokeObjectURL(objUrl);
-      try {
-        // 1. Escalar a máx 1800px
-        const maxDim = 1800;
-        let iw = img.naturalWidth, ih = img.naturalHeight;
-        if (iw > maxDim || ih > maxDim) {
-          const s = maxDim / Math.max(iw, ih);
-          iw = Math.round(iw * s); ih = Math.round(ih * s);
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = iw; canvas.height = ih;
-        canvas.getContext("2d")!.drawImage(img, 0, 0, iw, ih);
-
-        // 2. Detección IA de esquinas
-        onStatus("Analizando documento con IA…");
-        const corners = await detectCornersAI(canvas);
-
-        let workCanvas: HTMLCanvasElement;
-        if (corners) {
-          // 3a. Transformación de perspectiva
-          onStatus("Corrigiendo perspectiva…");
-          workCanvas = warpPerspective(canvas, corners);
-        } else {
-          // 3b. Fallback: crop por luminosidad
-          onStatus("Recortando documento…");
-          workCanvas = simpleCrop(canvas);
-        }
-
-        // 4. Mejoras de imagen
-        onStatus("Mejorando imagen…");
-        const ctx = workCanvas.getContext("2d")!;
-        const imgData = ctx.getImageData(0, 0, workCanvas.width, workCanvas.height);
-        autoLevels(imgData.data);
-        applyContrast(imgData.data, 18);
-        ctx.putImageData(imgData, 0, 0);
-        applySharpen(ctx, workCanvas.width, workCanvas.height);
-
-        workCanvas.toBlob(
-          (blob) => {
-            if (!blob) { reject(new Error("Error al procesar")); return; }
-            resolve({ blob, preview: workCanvas.toDataURL("image/jpeg", 0.93) });
-          },
-          "image/jpeg", 0.93
-        );
-      } catch (e) {
-        reject(e);
-      }
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxDim = 1800;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const s = Math.min(1, maxDim / Math.max(w, h));
+      w = Math.round(w * s); h = Math.round(h * s);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      resolve(canvas);
     };
-
-    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("No se pudo cargar")); };
-    img.src = objUrl;
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo cargar")); };
+    img.src = url;
   });
 }
 
-// ── Componente ────────────────────────────────────────────────
+function finalizeCanvas(canvas: HTMLCanvasElement, corners: Corners | null): HTMLCanvasElement {
+  const work = corners ? warpPerspective(canvas, corners) : simpleCrop(canvas);
+  const ctx  = work.getContext("2d")!;
+  const imgData = ctx.getImageData(0, 0, work.width, work.height);
+  autoLevels(imgData.data);
+  applyContrast(imgData.data, 18);
+  ctx.putImageData(imgData, 0, 0);
+  applySharpen(ctx, work.width, work.height);
+  return work;
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Canvas to blob failed"))),
+      "image/jpeg", 0.93
+    );
+  });
+}
+
+// ── Manual corner editor ───────────────────────────────────────
+
+type CornerKey = keyof Corners;
+type DisplayCorners = Record<CornerKey, Point>;
+
+interface ManualEditorProps {
+  imageUrl: string;
+  naturalW: number;
+  naturalH: number;
+  onApply: (corners: Corners) => void;
+  onSkip: () => void;
+  onRetry: () => void;
+}
+
+function ManualCornersEditor({ imageUrl, naturalW, naturalH, onApply, onSkip, onRetry }: ManualEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef       = useRef<HTMLImageElement>(null);
+  const dragging     = useRef<CornerKey | null>(null);
+
+  const [dispSize, setDispSize] = useState({ w: 0, h: 0 });
+  const [corners, setCorners]   = useState<DisplayCorners>({
+    tl: { x: 0, y: 0 }, tr: { x: 0, y: 0 },
+    br: { x: 0, y: 0 }, bl: { x: 0, y: 0 },
+  });
+
+  const initCorners = useCallback((w: number, h: number) => {
+    const p = 0.08;
+    setCorners({
+      tl: { x: w * p,       y: h * p       },
+      tr: { x: w * (1 - p), y: h * p       },
+      br: { x: w * (1 - p), y: h * (1 - p) },
+      bl: { x: w * p,       y: h * (1 - p) },
+    });
+  }, []);
+
+  const handleImgLoad = useCallback(() => {
+    if (!imgRef.current) return;
+    const w = imgRef.current.offsetWidth;
+    const h = imgRef.current.offsetHeight;
+    if (w > 0 && h > 0) {
+      setDispSize({ w, h });
+      initCorners(w, h);
+    }
+  }, [initCorners]);
+
+  const handlePointerDown = useCallback(
+    (key: CornerKey) => (e: React.PointerEvent<SVGCircleElement>) => {
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dragging.current = key;
+    },
+    []
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<SVGCircleElement>) => {
+      if (!dragging.current || !containerRef.current) return;
+      e.preventDefault();
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(dispSize.w, e.clientX - rect.left));
+      const y = Math.max(0, Math.min(dispSize.h, e.clientY - rect.top));
+      const key = dragging.current;
+      setCorners((prev) => ({ ...prev, [key]: { x, y } }));
+    },
+    [dispSize]
+  );
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<SVGCircleElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    dragging.current = null;
+  }, []);
+
+  const handleApply = useCallback(() => {
+    if (dispSize.w === 0) return;
+    const sx = naturalW / dispSize.w;
+    const sy = naturalH / dispSize.h;
+    onApply({
+      tl: { x: corners.tl.x * sx, y: corners.tl.y * sy },
+      tr: { x: corners.tr.x * sx, y: corners.tr.y * sy },
+      br: { x: corners.br.x * sx, y: corners.br.y * sy },
+      bl: { x: corners.bl.x * sx, y: corners.bl.y * sy },
+    });
+  }, [corners, dispSize, naturalW, naturalH, onApply]);
+
+  const handles: CornerKey[] = ["tl", "tr", "br", "bl"];
+
+  return (
+    <div className="space-y-3">
+      <div className="p-3 bg-amber-50 border border-amber-200">
+        <p className="text-[11px] font-semibold text-amber-800">
+          No detectamos el documento automáticamente
+        </p>
+        <p className="text-[11px] text-amber-700 mt-0.5">
+          Arrastrá los cuatro puntos blancos hasta las esquinas del documento.
+        </p>
+      </div>
+
+      <div
+        ref={containerRef}
+        className="relative w-full overflow-hidden bg-[#f0f0ee] select-none"
+        style={{ touchAction: "none" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          ref={imgRef}
+          src={imageUrl}
+          alt="Original"
+          className="w-full h-auto block"
+          onLoad={handleImgLoad}
+          draggable={false}
+        />
+
+        {dispSize.w > 0 && (
+          <svg
+            className="absolute inset-0 w-full h-full overflow-visible"
+            viewBox={`0 0 ${dispSize.w} ${dispSize.h}`}
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* Document boundary polygon */}
+            <polygon
+              points={`${corners.tl.x},${corners.tl.y} ${corners.tr.x},${corners.tr.y} ${corners.br.x},${corners.br.y} ${corners.bl.x},${corners.bl.y}`}
+              fill="rgba(59,130,246,0.08)"
+              stroke="#3b82f6"
+              strokeWidth="1.5"
+              strokeDasharray="6 3"
+            />
+
+            {/* Corner handles */}
+            {handles.map((key) => {
+              const pos = corners[key];
+              return (
+                <g key={key}>
+                  {/* Transparent hit area (larger for easier touch targeting) */}
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={22}
+                    fill="transparent"
+                    style={{ cursor: "grab", touchAction: "none" }}
+                    onPointerDown={handlePointerDown(key)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                  />
+                  {/* Visual handle */}
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={10}
+                    fill="white"
+                    stroke="#0a0a0a"
+                    strokeWidth="2.5"
+                    style={{ pointerEvents: "none" }}
+                  />
+                  {/* Corner cross */}
+                  <line
+                    x1={pos.x - 4} y1={pos.y}
+                    x2={pos.x + 4} y2={pos.y}
+                    stroke="#0a0a0a" strokeWidth="1.5"
+                    style={{ pointerEvents: "none" }}
+                  />
+                  <line
+                    x1={pos.x} y1={pos.y - 4}
+                    x2={pos.x} y2={pos.y + 4}
+                    stroke="#0a0a0a" strokeWidth="1.5"
+                    style={{ pointerEvents: "none" }}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="flex items-center gap-1.5 h-9 px-3 border border-[#e8e8e4] text-[11px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors"
+        >
+          <RotateCcw size={12} /> Reintentar
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="flex items-center gap-1.5 h-9 px-3 border border-[#e8e8e4] text-[11px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors"
+        >
+          Usar sin corregir
+        </button>
+        <button
+          type="button"
+          onClick={handleApply}
+          className="flex items-center gap-1.5 h-9 px-4 bg-[#0a0a0a] text-white text-[11px] font-bold hover:bg-[#1a1a1a] transition-colors ml-auto"
+        >
+          <Check size={12} /> Aplicar corrección
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Component types ────────────────────────────────────────────
+
+interface Props {
+  tipo: "frente" | "dorso";
+  currentUrl: string;
+  onConfirm: (processedBlob: Blob, previewUrl: string) => void;
+  disabled?: boolean;
+}
+
+type Stage = "idle" | "preparing" | "processing" | "manual" | "preview" | "done";
+
+// ── Main component ─────────────────────────────────────────────
 
 export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
-  const [stage, setStage] = useState<"idle" | "preview" | "processing" | "done">(
-    currentUrl ? "done" : "idle"
-  );
-  const [statusMsg, setStatusMsg] = useState("Detectando documento…");
-  const [originalPreview, setOriginalPreview] = useState("");
-  const [processedPreview, setProcessedPreview] = useState("");
-  const [processedBlob, setProcessedBlob] = useState<Blob | null>(null);
-  const [error, setError] = useState("");
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const fileRef   = useRef<HTMLInputElement>(null);
+  const [stage, setStage]               = useState<Stage>(currentUrl ? "done" : "idle");
+  const [statusMsg, setStatusMsg]       = useState("");
+  const [originalPreview, setOrigPrev]  = useState("");
+  const [processedPreview, setProcPrev] = useState("");
+  const [processedBlob, setProcBlob]    = useState<Blob | null>(null);
+  const [error, setError]               = useState("");
+
+  const origCanvas = useRef<HTMLCanvasElement | null>(null);
+  const cameraRef  = useRef<HTMLInputElement>(null);
+  const fileRef    = useRef<HTMLInputElement>(null);
 
   const label = tipo === "frente" ? "DNI Frente" : "DNI Dorso";
 
-  const handleFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) { setError("Usá JPG o PNG."); return; }
-    if (file.size > 30 * 1024 * 1024) { setError("El archivo es demasiado grande (máx. 30 MB)."); return; }
-    setError("");
-    const original = URL.createObjectURL(file);
-    setOriginalPreview(original);
-    setStatusMsg("Analizando documento con IA…");
+  // Begin loading OpenCV WASM as soon as the component mounts so it's
+  // ready (or near-ready) when the user selects an image.
+  useEffect(() => {
+    preloadOpenCV().catch(() => {});
+  }, []);
+
+  // Apply corners (or null for simpleCrop), enhance, and move to preview stage.
+  const applyAndPreview = useCallback(async (
+    canvas: HTMLCanvasElement,
+    corners: Corners | null
+  ) => {
     setStage("processing");
+    setStatusMsg(corners ? "Corrigiendo perspectiva…" : "Recortando documento…");
+
+    // Yield to let React paint the loading UI before the CPU-intensive warp
+    await new Promise<void>((r) => setTimeout(r, 60));
+
     try {
-      const { blob, preview } = await processDocumentImage(file, setStatusMsg);
-      setProcessedBlob(blob);
-      setProcessedPreview(preview);
+      const processed = finalizeCanvas(canvas, corners);
+      const blob      = await canvasToBlob(processed);
+      setProcBlob(blob);
+      setProcPrev(processed.toDataURL("image/jpeg", 0.93));
       setStage("preview");
     } catch {
-      setError("No se pudo procesar la imagen. Intentá de nuevo.");
+      setError("Error al procesar la imagen. Intentá de nuevo.");
       setStage("idle");
-      URL.revokeObjectURL(original);
     }
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-    e.target.value = "";
-  };
+  const handleFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Usá un archivo JPG o PNG.");
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      setError("El archivo es demasiado grande (máx. 30 MB).");
+      return;
+    }
 
-  const handleConfirm = () => {
+    setError("");
+    setOrigPrev(URL.createObjectURL(file));
+    setStage("preparing");
+    setStatusMsg("Cargando imagen…");
+
+    try {
+      const canvas = await loadImageToCanvas(file);
+      origCanvas.current = canvas;
+
+      setStage("processing");
+      setStatusMsg("Detectando bordes del documento…");
+
+      let corners: Corners | null = null;
+      try {
+        corners = await detectDocumentCorners(canvas);
+      } catch {
+        // OpenCV failed to load (e.g., offline) — fall through to manual mode
+      }
+
+      if (corners) {
+        await applyAndPreview(canvas, corners);
+      } else {
+        setStage("manual");
+      }
+    } catch {
+      setError("No se pudo procesar la imagen. Intentá de nuevo.");
+      setStage("idle");
+    }
+  }, [applyAndPreview]);
+
+  const handleManualApply = useCallback((corners: Corners) => {
+    if (origCanvas.current) applyAndPreview(origCanvas.current, corners);
+  }, [applyAndPreview]);
+
+  const handleManualSkip = useCallback(() => {
+    if (origCanvas.current) applyAndPreview(origCanvas.current, null);
+  }, [applyAndPreview]);
+
+  const handleConfirm = useCallback(() => {
     if (!processedBlob || !processedPreview) return;
     onConfirm(processedBlob, processedPreview);
     setStage("done");
-  };
+  }, [processedBlob, processedPreview, onConfirm]);
 
-  const handleRetake = () => {
+  const handleRetake = useCallback(() => {
     setStage("idle");
-    setOriginalPreview("");
-    setProcessedPreview("");
-    setProcessedBlob(null);
+    setOrigPrev("");
+    setProcPrev("");
+    setProcBlob(null);
     setError("");
-  };
+    origCanvas.current = null;
+  }, []);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+    e.target.value = "";
+  }, [handleFile]);
 
   const displayUrl = stage === "done" ? (currentUrl || processedPreview) : "";
 
   return (
     <div className="border border-[#e8e8e4] bg-white overflow-hidden">
+      {/* Header */}
       <div className="px-4 py-3 border-b border-[#e8e8e4] flex items-center justify-between">
-        <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-[#0a0a0a]">{label}</span>
+        <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-[#0a0a0a]">
+          {label}
+        </span>
         {stage === "done" && (
           <span className="flex items-center gap-1.5 text-[11px] font-semibold text-green-700">
             <Check size={13} /> Cargado
@@ -394,82 +581,148 @@ export function DniCapture({ tipo, currentUrl, onConfirm, disabled }: Props) {
       </div>
 
       <div className="p-4">
+        {/* ── idle ───────────────────────────────────────────── */}
         {stage === "idle" && (
           <div>
             <p className="text-[12px] text-[#6b6b6b] mb-4">
-              Colocá el DNI sobre la mesa y tomá la foto. La IA detectará y recortará el documento automáticamente.
+              Colocá el DNI sobre la mesa y tomá la foto. El sistema detectará
+              y recortará el documento automáticamente.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <button type="button" disabled={disabled}
+              <button
+                type="button"
+                disabled={disabled}
                 onClick={() => cameraRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 h-11 border border-[#0a0a0a] text-[12px] font-semibold text-[#0a0a0a] hover:bg-[#0a0a0a] hover:text-white transition-colors disabled:opacity-40">
+                className="flex-1 flex items-center justify-center gap-2 h-11 border border-[#0a0a0a] text-[12px] font-semibold text-[#0a0a0a] hover:bg-[#0a0a0a] hover:text-white transition-colors disabled:opacity-40"
+              >
                 <Camera size={16} /> Tomar foto
               </button>
-              <button type="button" disabled={disabled}
+              <button
+                type="button"
+                disabled={disabled}
                 onClick={() => fileRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 h-11 border border-[#e8e8e4] text-[12px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors disabled:opacity-40">
+                className="flex-1 flex items-center justify-center gap-2 h-11 border border-[#e8e8e4] text-[12px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors disabled:opacity-40"
+              >
                 <Upload size={16} /> Subir archivo
               </button>
             </div>
-            {error && <p className="mt-3 text-[12px] text-red-600 font-medium">{error}</p>}
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleInputChange} />
-            <input ref={fileRef}   type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
+            {error && (
+              <p className="mt-3 text-[12px] text-red-600 font-medium">{error}</p>
+            )}
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleInputChange}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleInputChange}
+            />
           </div>
         )}
 
-        {stage === "processing" && (
+        {/* ── preparing / processing ─────────────────────────── */}
+        {(stage === "preparing" || stage === "processing") && (
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 size={28} className="animate-spin text-[#0a0a0a]" />
             <div className="text-center">
               <p className="text-[13px] font-semibold text-[#0a0a0a]">{statusMsg}</p>
-              <p className="text-[11px] text-[#6b6b6b] mt-1">Esto puede demorar unos segundos</p>
+              <p className="text-[11px] text-[#6b6b6b] mt-1">
+                Procesamiento local — no se envían imágenes a ningún servidor
+              </p>
             </div>
             {originalPreview && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={originalPreview} alt="Original" className="w-full max-w-xs object-contain opacity-40" />
+              <img
+                src={originalPreview}
+                alt="Original"
+                className="w-full max-w-xs object-contain opacity-40"
+              />
             )}
           </div>
         )}
 
+        {/* ── manual corner editor ───────────────────────────── */}
+        {stage === "manual" && originalPreview && origCanvas.current && (
+          <ManualCornersEditor
+            imageUrl={originalPreview}
+            naturalW={origCanvas.current.width}
+            naturalH={origCanvas.current.height}
+            onApply={handleManualApply}
+            onSkip={handleManualSkip}
+            onRetry={handleRetake}
+          />
+        )}
+
+        {/* ── split preview ──────────────────────────────────── */}
         {stage === "preview" && (
           <div>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <p className="text-[10px] font-bold tracking-[0.08em] uppercase text-[#a3a3a3] mb-1.5">Original</p>
+                <p className="text-[10px] font-bold tracking-[0.08em] uppercase text-[#a3a3a3] mb-1.5">
+                  Original
+                </p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={originalPreview} alt="Original"
-                  className="w-full object-contain border border-[#e8e8e4] bg-[#f7f7f6]" />
+                <img
+                  src={originalPreview}
+                  alt="Original"
+                  className="w-full object-contain border border-[#e8e8e4] bg-[#f7f7f6]"
+                />
               </div>
               <div>
-                <p className="text-[10px] font-bold tracking-[0.08em] uppercase text-[#a3a3a3] mb-1.5">Procesado</p>
+                <p className="text-[10px] font-bold tracking-[0.08em] uppercase text-[#a3a3a3] mb-1.5">
+                  Procesado
+                </p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={processedPreview} alt="Procesado"
-                  className="w-full object-contain border-2 border-[#0a0a0a] bg-[#f7f7f6]" />
+                <img
+                  src={processedPreview}
+                  alt="Procesado"
+                  className="w-full object-contain border-2 border-[#0a0a0a] bg-[#f7f7f6]"
+                />
               </div>
             </div>
             <p className="text-[11px] text-[#6b6b6b] mb-4">
               Revisá que el documento se vea completo y legible.
             </p>
             <div className="flex gap-3">
-              <button type="button" onClick={handleRetake}
-                className="flex items-center gap-2 h-10 px-4 border border-[#e8e8e4] text-[11px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors">
+              <button
+                type="button"
+                onClick={handleRetake}
+                className="flex items-center gap-2 h-10 px-4 border border-[#e8e8e4] text-[11px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors"
+              >
                 <RotateCcw size={13} /> Repetir foto
               </button>
-              <button type="button" onClick={handleConfirm}
-                className="flex items-center gap-2 h-10 px-5 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.05em] hover:bg-[#1a1a1a] transition-colors">
-                <Check size={13} /> Confirmar
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="flex items-center gap-2 h-10 px-5 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.05em] hover:bg-[#1a1a1a] transition-colors"
+              >
+                <Check size={13} /> Confirmar documento
               </button>
             </div>
           </div>
         )}
 
+        {/* ── done ───────────────────────────────────────────── */}
         {stage === "done" && displayUrl && (
           <div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={displayUrl} alt={label}
-              className="w-full max-h-48 object-contain border border-[#e8e8e4] bg-[#f7f7f6] mb-3" />
-            <button type="button" onClick={handleRetake}
-              className="flex items-center gap-2 h-9 px-4 border border-[#e8e8e4] text-[11px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors">
+            <img
+              src={displayUrl}
+              alt={label}
+              className="w-full max-h-48 object-contain border border-[#e8e8e4] bg-[#f7f7f6] mb-3"
+            />
+            <button
+              type="button"
+              onClick={handleRetake}
+              className="flex items-center gap-2 h-9 px-4 border border-[#e8e8e4] text-[11px] font-semibold text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors"
+            >
               <RotateCcw size={13} /> Cambiar foto
             </button>
           </div>
