@@ -84,11 +84,21 @@ export default function HomePage() {
   }, []);
 
   // ── Detect direct property link before first paint ──────────────────────
-  // useLayoutEffect fires synchronously before the browser paints, so the
-  // home page is never shown when navigating directly to a property URL.
   useLayoutEffect(() => {
     if (/^\/propiedad-/.test(window.location.pathname)) setIsDirectLink(true);
   }, []);
+
+  // ── Remove property loader overlay when the correct view is ready ────────
+  useEffect(() => {
+    const el = document.getElementById("property-loader");
+    if (!el) return;
+    const ready = view === "detail" || (!loading && !isDirectLink);
+    if (!ready) return;
+    el.style.transition = "opacity 0.2s";
+    el.style.opacity = "0";
+    const t = setTimeout(() => el.remove(), 200);
+    return () => clearTimeout(t);
+  }, [view, loading, isDirectLink]);
 
   // ── Restore filters from URL on load ────────────────────────────────────
   useEffect(() => {
