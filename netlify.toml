@@ -6,3 +6,8 @@
   from = "/ficha/*"
   to = "/ficha/index"
   status = 200
+
+[[redirects]]
+  from = "/propiedad-*"
+  to = "/"
+  status = 200

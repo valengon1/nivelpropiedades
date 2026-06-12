@@ -31,6 +31,11 @@ function parsePriceForSort(s: string): number {
   return Number(String(s || "").replace(/\./g, "").replace(/[^0-9]/g, "")) || 0;
 }
 
+function shortId(id: number | string): string {
+  const s = String(id);
+  return s.includes("-") ? s.split("-")[0] : s;
+}
+
 let counterHasAnimated = false;
 let counterMainVisits = 0;
 
@@ -48,6 +53,8 @@ export default function HomePage() {
   const lastViewRef = useRef<ActiveView>("main");
   const searchResultsRef = useRef<Property[]>([]);
   const lastScrollYRef = useRef(0);
+  const [isDirectLink, setIsDirectLink] = useState(false);
+  const lastSearchUrlRef = useRef<string>("/");
 
   // All programmatic hash changes go through here.
   // Uses pushState so the popstate listener (which fires only on back/forward) is never triggered by our own calls.
@@ -76,11 +83,17 @@ export default function HomePage() {
     load();
   }, []);
 
+  // ── Detect direct property link on mount ────────────────────────────────
+  useEffect(() => {
+    if (/^\/propiedad-/.test(window.location.pathname)) setIsDirectLink(true);
+  }, []);
+
   // ── Restore filters from URL on load ────────────────────────────────────
   useEffect(() => {
     if (loading || !properties.length) return;
-    // If the hash points to a specific property, let the hash routing effect handle it
+    // If the hash or path points to a specific property, let the hash routing effect handle it
     if (window.location.hash.replace("#", "").startsWith("propiedad-")) return;
+    if (/^\/propiedad-/.test(window.location.pathname)) return;
     const p = new URLSearchParams(window.location.search);
     const op = p.get("op") || "";
     const kw = p.get("q") || "";
@@ -169,15 +182,29 @@ export default function HomePage() {
   useEffect(() => {
     if (!properties.length) return;
 
-    // Initial load: open property if hash points to one
-    const initHash = window.location.hash.replace("#", "");
-    if (initHash.startsWith("propiedad-")) {
-      const prop = properties.find((p) => String(p.id) === initHash.replace("propiedad-", ""));
+    // Initial load: open property from path (new format) or hash (legacy)
+    const pathMatch = window.location.pathname.match(/^\/propiedad-(.+)/);
+    if (pathMatch) {
+      const sid = pathMatch[1];
+      const prop = properties.find((p) => shortId(p.id) === sid);
       if (prop) { setSelectedProperty(prop); setView("detail"); }
+      else setIsDirectLink(false); // not found → show home
+    } else {
+      const initHash = window.location.hash.replace("#", "");
+      if (initHash.startsWith("propiedad-")) {
+        const prop = properties.find((p) => String(p.id) === initHash.replace("propiedad-", ""));
+        if (prop) { setSelectedProperty(prop); setView("detail"); }
+      }
     }
 
     // Browser back/forward handler — fires only on browser navigation, NOT on our pushState calls
     const handleNavigation = () => {
+      const pathM = window.location.pathname.match(/^\/propiedad-(.+)/);
+      if (pathM) {
+        const sid = pathM[1];
+        const prop = properties.find((p) => shortId(p.id) === sid);
+        if (prop) { setSelectedProperty(prop); setView("detail"); return; }
+      }
       const hash = window.location.hash.replace("#", "");
       if (!hash || hash === "inicio") {
         setView("main");
@@ -231,6 +258,7 @@ export default function HomePage() {
     if (f.rooms && f.rooms !== "all") qs.set("rooms", f.rooms);
     const qStr = qs.toString();
     const newUrl = `${qStr ? `/?${qStr}` : "/"}#busqueda`;
+    lastSearchUrlRef.current = newUrl;
     if (view === "search") {
       // Already in search view: replace current entry so back-button skips filter changes
       window.history.replaceState(null, "", newUrl);
@@ -258,14 +286,15 @@ export default function HomePage() {
     setLastScrollY(window.scrollY);
     setSelectedProperty(property);
     setView("detail");
-    setHash(`propiedad-${property.id}`);
+    window.history.pushState(null, "", `/propiedad-${shortId(property.id)}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goBack() {
+    setIsDirectLink(false);
     if (lastViewRef.current === "search" && searchResultsRef.current.length > 0) {
       setView("search");
-      setHash("busqueda");
+      window.history.pushState(null, "", lastSearchUrlRef.current);
       setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
     } else {
       setView("main");
@@ -387,6 +416,45 @@ export default function HomePage() {
           </div>
         </motion.div>
       </AnimatePresence>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Loading: Direct property link — show skeleton instead of homepage
+  // ══════════════════════════════════════════════════════════════════════════
+  if (isDirectLink && view !== "detail") {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="border-b border-[#e5e5e5] h-12" />
+        <div className="container-site py-6 lg:py-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 lg:gap-10">
+            <div>
+              <div className="w-full bg-[#f0f0f0] animate-pulse mb-3" style={{ aspectRatio: "16/10" }} />
+              <div className="flex gap-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="w-20 h-16 bg-[#f0f0f0] animate-pulse flex-shrink-0" />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4 pt-1">
+              <div className="h-3 bg-[#f0f0f0] animate-pulse w-1/3 rounded" />
+              <div className="h-7 bg-[#f0f0f0] animate-pulse w-3/4 rounded" />
+              <div className="h-7 bg-[#f0f0f0] animate-pulse w-1/2 rounded" />
+              <div className="h-px bg-[#e5e5e5] mt-4" />
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex justify-between py-3 border-b border-[#f0f0f0]">
+                  <div className="h-3 bg-[#f0f0f0] animate-pulse w-1/4 rounded" />
+                  <div className="h-3 bg-[#f0f0f0] animate-pulse w-1/3 rounded" />
+                </div>
+              ))}
+              <div className="pt-4 space-y-3">
+                <div className="h-12 bg-[#f0f0f0] animate-pulse rounded" />
+                <div className="h-11 bg-[#f0f0f0] animate-pulse rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
