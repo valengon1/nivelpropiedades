@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Search, X } from "lucide-react";
@@ -83,8 +83,10 @@ export default function HomePage() {
     load();
   }, []);
 
-  // ── Detect direct property link on mount ────────────────────────────────
-  useEffect(() => {
+  // ── Detect direct property link before first paint ──────────────────────
+  // useLayoutEffect fires synchronously before the browser paints, so the
+  // home page is never shown when navigating directly to a property URL.
+  useLayoutEffect(() => {
     if (/^\/propiedad-/.test(window.location.pathname)) setIsDirectLink(true);
   }, []);
 
