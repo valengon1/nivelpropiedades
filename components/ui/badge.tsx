@@ -10,7 +10,7 @@ const badgeVariants = cva(
         default: "border border-[#0a0a0a] text-[#0a0a0a]",
         muted: "border border-[#e5e5e5] text-[#6b6b6b]",
         sale: "bg-[#0a0a0a] text-white border border-[#0a0a0a]",
-        rental: "bg-[#0a0a0a] text-white border border-[#0a0a0a]",
+        rental: "bg-white text-[#0a0a0a] border border-[#0a0a0a]",
       },
     },
     defaultVariants: {

@@ -47,13 +47,13 @@ export function Footer() {
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-white/30 mb-4">
               Secciones
             </p>
-            <div className="grid gap-2">
+            <div className="grid">
               {footerLinks.map((link) => (
                 <Link
                   key={link.label}
                   href={link.href}
                   onClick={(e) => handleClick(link, e)}
-                  className="text-[#888] text-sm hover:text-white transition-colors duration-200"
+                  className="flex items-center min-h-[44px] text-[#888] text-sm hover:text-white active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-sm"
                 >
                   {link.label}
                 </Link>
@@ -65,11 +65,11 @@ export function Footer() {
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-white/30 mb-4">
               Contacto
             </p>
-            <div className="grid gap-2">
-              <p className="text-[#888] text-sm">Av. Gaona 2422, Ramos Mejía</p>
+            <div className="grid">
+              <p className="flex items-center min-h-[44px] text-[#888] text-sm">Av. Gaona 2422, Ramos Mejía</p>
               <a
                 href="tel:+541146540122"
-                className="text-[#888] text-sm hover:text-white transition-colors"
+                className="flex items-center min-h-[44px] text-[#888] text-sm hover:text-white active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-sm"
               >
                 4654-0122
               </a>
@@ -77,13 +77,13 @@ export function Footer() {
                 href="https://wa.me/5491166838275"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#888] text-sm hover:text-white transition-colors"
+                className="flex items-center min-h-[44px] text-[#888] text-sm hover:text-white active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-sm"
               >
                 11 6683-8275
               </a>
               <a
                 href="mailto:nivelconsultas@gmail.com"
-                className="text-[#888] text-sm hover:text-white transition-colors"
+                className="flex items-center min-h-[44px] text-[#888] text-sm hover:text-white active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-sm"
               >
                 nivelconsultas@gmail.com
               </a>

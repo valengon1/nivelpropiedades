@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Search, X } from "lucide-react";
+import { ArrowRight, Search, X, RefreshCw, Loader2 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
 import { formatMoney, buildWhatsappLink, matchesRooms } from "@/lib/utils";
@@ -14,8 +14,10 @@ import {
   mapDbRow,
 } from "@/types/property";
 import { PropertyCard } from "@/components/properties/PropertyCard";
+import { PropertyCardSkeleton } from "@/components/properties/PropertyCardSkeleton";
 import { PropertyDetail } from "@/components/properties/PropertyDetail";
-import { PropertySearch } from "@/components/properties/PropertySearch";
+import { SearchControls } from "@/components/properties/SearchControls";
+import { TopProgressBar } from "@/components/ui/top-progress-bar";
 
 type ActiveView = "main" | "search" | "detail";
 
@@ -55,6 +57,9 @@ export default function HomePage() {
   const lastScrollYRef = useRef(0);
   const [isDirectLink, setIsDirectLink] = useState(false);
   const lastSearchUrlRef = useRef<string>("/");
+  const [fetchError, setFetchError] = useState(false);
+  const [showLoadingBar, setShowLoadingBar] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
 
   // All programmatic hash changes go through here.
   // Uses pushState so the popstate listener (which fires only on back/forward) is never triggered by our own calls.
@@ -65,6 +70,16 @@ export default function HomePage() {
 
   // ── Load properties ─────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFetchError(false);
+
+    // Barra de progreso solo si la carga tarda más de 200ms — en cargas
+    // rápidas (lo normal) no llega a mostrarse y evitamos un parpadeo inútil.
+    const barTimer = setTimeout(() => {
+      if (!cancelled) setShowLoadingBar(true);
+    }, 200);
+
     const load = async () => {
       const { data, error } = await supabase
         .from("properties")
@@ -73,15 +88,30 @@ export default function HomePage() {
         .order("featured", { ascending: false })
         .order("created_at", { ascending: false });
 
-      setProperties(
-        error || !data?.length
-          ? DEFAULT_PROPERTIES
-          : data.map((r) => mapDbRow(r as Record<string, unknown>))
-      );
+      if (cancelled) return;
+      clearTimeout(barTimer);
+
+      if (error) {
+        // Mostramos igual algo de contenido de referencia, pero avisamos del
+        // error para que se pueda reintentar en vez de fallar en silencio.
+        setFetchError(true);
+        setProperties(DEFAULT_PROPERTIES);
+      } else {
+        setFetchError(false);
+        setProperties(data?.length ? data.map((r) => mapDbRow(r as Record<string, unknown>)) : DEFAULT_PROPERTIES);
+      }
       setLoading(false);
+      setShowLoadingBar(false);
     };
     load();
-  }, []);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(barTimer);
+    };
+  }, [reloadTick]);
+
+  const retryLoadProperties = () => setReloadTick((t) => t + 1);
 
   // ── Detect direct property link before first paint ──────────────────────
   useLayoutEffect(() => {
@@ -346,8 +376,14 @@ export default function HomePage() {
     return searchResults;
   }, [searchResults, sortOrder]);
 
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+
   const handleContactForm = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (contactSubmitting) return; // evita doble envío por doble click
+    setContactSubmitting(true);
+    setTimeout(() => setContactSubmitting(false), 1200);
+
     const form = e.currentTarget;
     const name = (form.querySelector("#formName") as HTMLInputElement)?.value.trim();
     const phone = (form.querySelector("#formPhone") as HTMLInputElement)?.value.trim();
@@ -392,7 +428,7 @@ export default function HomePage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-[#0a0a0a] mb-5" style={{ letterSpacing: "-0.03em" }}>
                 Resultados encontrados
               </h1>
-              <PropertySearch filters={filters} locations={locations} onChange={setFilters} onSearch={runSearch} />
+              <SearchControls filters={filters} locations={locations} onChange={setFilters} onSearch={runSearch} />
             </div>
           </div>
 
@@ -437,7 +473,13 @@ export default function HomePage() {
               <div className="py-16 text-center">
                 <Search size={24} className="mx-auto text-[#d0d0d0] mb-3" />
                 <p className="text-[#6b6b6b] font-medium">Sin resultados para esos filtros.</p>
-                <p className="text-sm text-[#a3a3a3] mt-1">Probá con otros criterios o consultanos directamente.</p>
+                <p className="text-sm text-[#a3a3a3] mt-1 mb-5">Probá con otros criterios o consultanos directamente.</p>
+                <button
+                  onClick={clearSearch}
+                  className="h-10 px-6 min-h-[44px] border border-[#0a0a0a] text-[11px] font-semibold tracking-[0.08em] uppercase hover:bg-[#0a0a0a] hover:text-white active:scale-[0.98] transition-all duration-150"
+                >
+                  Ver todas las propiedades
+                </button>
               </div>
             )}
           </div>
@@ -452,6 +494,7 @@ export default function HomePage() {
   if (isDirectLink && view !== "detail") {
     return (
       <div className="min-h-screen bg-white">
+        <TopProgressBar active={showLoadingBar} />
         <div className="border-b border-[#e5e5e5] h-12" />
         <div className="container-site py-6 lg:py-10">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 lg:gap-10">
@@ -491,6 +534,7 @@ export default function HomePage() {
   return (
     <AnimatePresence mode="wait">
       <motion.div key="main" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+        <TopProgressBar active={showLoadingBar} />
 
         {/* ── HERO ─────────────────────────────────────────── */}
         <section
@@ -527,13 +571,13 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => quickSearch("venta")}
-                  className="h-12 px-6 bg-white text-[#0a0a0a] text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-white/90 transition-colors flex items-center justify-center gap-2"
+                  className="h-12 min-h-[44px] px-6 bg-white text-[#0a0a0a] text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-white/90 active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
                 >
                   Ver ventas <ArrowRight size={13} />
                 </button>
                 <button
                   onClick={() => quickSearch("alquiler")}
-                  className="h-12 px-6 border border-white/25 text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-white/10 transition-colors"
+                  className="h-12 min-h-[44px] px-6 border border-white/25 text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-white/10 active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
                 >
                   Ver alquileres
                 </button>
@@ -545,7 +589,7 @@ export default function HomePage() {
         {/* ── SEARCH BAR ───────────────────────────────────── */}
         <section className="border-b border-[#e5e5e5]">
           <div className="container-site py-6 sm:py-8">
-            <PropertySearch filters={filters} locations={locations} onChange={setFilters} onSearch={runSearch} />
+            <SearchControls filters={filters} locations={locations} onChange={setFilters} onSearch={runSearch} />
           </div>
         </section>
 
@@ -567,20 +611,30 @@ export default function HomePage() {
               </div>
               <button
                 onClick={() => quickSearch("venta")}
-                className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase text-[#6b6b6b] hover:text-[#0a0a0a] transition-colors flex-shrink-0"
+                className="hidden sm:flex items-center gap-1.5 min-h-[44px] text-[11px] font-semibold tracking-wide uppercase text-[#6b6b6b] hover:text-[#0a0a0a] active:scale-[0.98] transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
               >
                 Ver todas <ArrowRight size={12} />
               </button>
             </div>
 
+            {fetchError && (
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-[#e5e5e5] bg-[#f7f7f6] px-4 py-3">
+                <p className="text-sm text-[#6b6b6b]">
+                  No pudimos actualizar los datos. Mostrando información de referencia.
+                </p>
+                <button
+                  onClick={retryLoadProperties}
+                  className="flex items-center gap-1.5 h-9 px-4 min-h-[44px] text-[11px] font-semibold tracking-[0.08em] uppercase border border-[#0a0a0a] text-[#0a0a0a] hover:bg-[#0a0a0a] hover:text-white active:scale-[0.98] transition-all duration-150"
+                >
+                  <RefreshCw size={12} /> Reintentar
+                </button>
+              </div>
+            )}
+
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="space-y-3">
-                    <div className="aspect-[4/3] bg-[#f0f0f0] animate-pulse" />
-                    <div className="h-3 bg-[#f0f0f0] animate-pulse w-1/3 rounded" />
-                    <div className="h-4 bg-[#f0f0f0] animate-pulse w-2/3 rounded" />
-                  </div>
+                  <PropertyCardSkeleton key={i} />
                 ))}
               </div>
             ) : featuredSales.length > 0 ? (
@@ -598,7 +652,7 @@ export default function HomePage() {
             <div className="mt-8 text-center sm:hidden">
               <button
                 onClick={() => quickSearch("venta")}
-                className="h-10 px-7 border border-[#0a0a0a] text-[11px] font-bold tracking-wide uppercase hover:bg-[#0a0a0a] hover:text-white transition-colors"
+                className="h-10 min-h-[44px] px-7 border border-[#0a0a0a] text-[11px] font-bold tracking-wide uppercase hover:bg-[#0a0a0a] hover:text-white active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
               >
                 Ver todas las ventas
               </button>
@@ -632,7 +686,7 @@ export default function HomePage() {
                 href={buildWhatsappLink("Hola Nivel Propiedades, quiero tasar mi propiedad")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="self-start sm:self-auto h-11 px-6 bg-white text-[#0a0a0a] text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-white/90 transition-colors flex items-center gap-2 flex-shrink-0"
+                className="self-start sm:self-auto h-11 min-h-[44px] px-6 bg-white text-[#0a0a0a] text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-white/90 active:scale-[0.98] transition-all duration-150 flex items-center gap-2 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
               >
                 Tasá tu propiedad
               </a>
@@ -667,13 +721,13 @@ export default function HomePage() {
                   href={buildWhatsappLink("Hola Nivel Propiedades, quiero alquilar mi propiedad")}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="self-start h-11 px-6 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
+                  className="self-start h-11 min-h-[44px] px-6 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#1a1a1a] active:scale-[0.98] transition-all duration-150 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
                 >
                   Quiero alquilar mi propiedad
                 </a>
                 <button
                   onClick={() => quickSearch("alquiler")}
-                  className="self-start h-11 px-6 border border-[#0a0a0a] text-[#0a0a0a] text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#0a0a0a] hover:text-white transition-colors flex items-center gap-2"
+                  className="self-start h-11 min-h-[44px] px-6 border border-[#0a0a0a] text-[#0a0a0a] text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#0a0a0a] hover:text-white active:scale-[0.98] transition-all duration-150 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
                 >
                   Ver propiedades en alquiler <ArrowRight size={12} />
                 </button>
@@ -829,8 +883,12 @@ export default function HomePage() {
                     <textarea id="formMessage" rows={4} placeholder="¿En qué podemos ayudarte?"
                       className="w-full border border-[#e5e5e5] px-3 py-2.5 text-sm placeholder:text-[#c0c0c0] focus:border-[#0a0a0a] focus:outline-none resize-none" />
                   </div>
-                  <button type="submit"
-                    className="h-11 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#1a1a1a] transition-colors">
+                  <button
+                    type="submit"
+                    disabled={contactSubmitting}
+                    className="h-11 min-h-[44px] bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#1a1a1a] active:scale-[0.98] transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
+                  >
+                    {contactSubmitting && <Loader2 size={14} className="animate-spin" />}
                     Enviar consulta
                   </button>
                 </form>

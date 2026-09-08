@@ -90,7 +90,7 @@ export default function ContactoPage() {
                           href={item.href}
                           target={item.href.startsWith("http") ? "_blank" : undefined}
                           rel="noopener noreferrer"
-                          className="text-[14px] text-[#0a0a0a] hover:text-[#6b6b6b] transition-colors font-medium"
+                          className="inline-flex items-center min-h-[32px] text-[14px] text-[#0a0a0a] hover:text-[#6b6b6b] active:scale-[0.98] transition-all duration-150 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2 rounded-sm"
                         >
                           {item.value}
                         </a>

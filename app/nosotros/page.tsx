@@ -100,7 +100,7 @@ export default function NosotrosPage() {
               <div className="mt-10 pt-8 border-t border-[#e5e5e5]">
                 <Link
                   href="/contacto"
-                  className="inline-flex items-center gap-2 h-11 px-7 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#1a1a1a] transition-colors"
+                  className="inline-flex items-center gap-2 h-11 min-h-[44px] px-7 bg-[#0a0a0a] text-white text-[11px] font-bold tracking-[0.1em] uppercase hover:bg-[#1a1a1a] active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
                 >
                   Contactarnos
                 </Link>

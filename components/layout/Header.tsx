@@ -6,7 +6,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import * as Dialog from "@radix-ui/react-dialog";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 const navLinks = [
   { label: "Inicio", href: "/", op: null },
@@ -22,6 +23,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeOp, setActiveOp] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -116,7 +118,7 @@ export function Header() {
                   href={link.href}
                   onClick={(e) => handleClick(link, e)}
                   className={cn(
-                    "text-[11px] font-semibold tracking-[0.1em] uppercase transition-colors duration-200",
+                    "text-[11px] font-semibold tracking-[0.1em] uppercase transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2 rounded-sm",
                     isActive(link)
                       ? "text-[#0a0a0a]"
                       : "text-[#6b6b6b] hover:text-[#0a0a0a]"
@@ -129,9 +131,11 @@ export function Header() {
 
             {/* Mobile menu button */}
             <button
-              className="lg:hidden w-10 h-10 flex items-center justify-center text-[#0a0a0a]"
+              className="lg:hidden w-11 h-11 min-h-[44px] flex items-center justify-center text-[#0a0a0a] active:scale-[0.98] transition-all duration-150"
               onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Menú"
+              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu-panel"
             >
               {menuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -140,33 +144,50 @@ export function Header() {
       </header>
 
       {/* Mobile menu */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            className="fixed top-[72px] left-0 right-0 z-40 bg-white border-b border-[#e5e5e5] lg:hidden"
-          >
-            <div className="container-site py-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={(e) => { handleClick(link, e); setMenuOpen(false); }}
-                  className={cn(
-                    "flex items-center py-4 text-[11px] font-semibold tracking-[0.1em] uppercase border-b border-[#f0f0f0] last:border-0 transition-colors",
-                    isActive(link) ? "text-[#0a0a0a]" : "text-[#6b6b6b]"
-                  )}
+      <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
+        <AnimatePresence>
+          {menuOpen && (
+            <Dialog.Portal forceMount>
+              <Dialog.Overlay asChild forceMount>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: reduceMotion ? 0.01 : 0.2 }}
+                  className="fixed inset-0 z-40 bg-black/20 lg:hidden"
+                />
+              </Dialog.Overlay>
+              <Dialog.Content asChild forceMount id="mobile-menu-panel">
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: reduceMotion ? 0.01 : 0.2 }}
+                  className="fixed top-[72px] left-0 right-0 z-40 bg-white border-b border-[#e5e5e5] lg:hidden outline-none overflow-y-auto"
+                  style={{ maxHeight: "calc(100dvh - 72px)" }}
                 >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <Dialog.Title className="sr-only">Menú de navegación</Dialog.Title>
+                  <div className="container-site py-4">
+                    {navLinks.map((link) => (
+                      <Link
+                        key={link.label}
+                        href={link.href}
+                        onClick={(e) => { handleClick(link, e); setMenuOpen(false); }}
+                        className={cn(
+                          "flex items-center py-4 min-h-[44px] text-[11px] font-semibold tracking-[0.1em] uppercase border-b border-[#f0f0f0] last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-inset",
+                          isActive(link) ? "text-[#0a0a0a]" : "text-[#6b6b6b]"
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                </motion.div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          )}
+        </AnimatePresence>
+      </Dialog.Root>
     </>
   );
 }

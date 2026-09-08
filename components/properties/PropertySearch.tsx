@@ -11,7 +11,8 @@ interface PropertySearchProps {
   onSearch: (overrideFilters?: PropertyFilters) => void;
 }
 
-const PROPERTY_TYPES = ["Departamento", "Casa", "PH", "Lote", "Terreno", "Local", "Oficina"];
+export const PROPERTY_TYPES = ["Departamento", "Casa", "PH", "Lote", "Terreno", "Local", "Oficina"];
+export const ROOM_OPTIONS = ["all", "1", "2", "3", "4", "5"];
 
 export function PropertySearch({ filters, locations, onChange, onSearch }: PropertySearchProps) {
   const set = (key: keyof PropertyFilters, value: string) =>
@@ -91,7 +92,7 @@ export function PropertySearch({ filters, locations, onChange, onSearch }: Prope
             <button
               key={r}
               onClick={() => setAndSearch("rooms", r)}
-              className={`h-7 px-3 text-[10px] font-semibold tracking-[0.08em] uppercase border transition-colors ${
+              className={`h-7 px-3 text-[10px] font-semibold tracking-[0.08em] uppercase border active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-1 ${
                 filters.rooms === r
                   ? "border-[#0a0a0a] bg-[#0a0a0a] text-white"
                   : "border-[#e5e5e5] text-[#6b6b6b] hover:border-[#0a0a0a] hover:text-[#0a0a0a]"
@@ -104,7 +105,7 @@ export function PropertySearch({ filters, locations, onChange, onSearch }: Prope
 
         <button
           onClick={() => onSearch()}
-          className="h-9 px-6 bg-[#0a0a0a] text-white text-[11px] font-semibold tracking-[0.08em] uppercase hover:bg-[#1a1a1a] transition-colors flex-shrink-0"
+          className="h-9 px-6 bg-[#0a0a0a] text-white text-[11px] font-semibold tracking-[0.08em] uppercase hover:bg-[#1a1a1a] active:scale-[0.98] transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
         >
           Buscar
         </button>

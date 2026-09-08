@@ -22,7 +22,7 @@ export function FloatingSocials() {
       </motion.a>
 
       <motion.a
-        href="https://www.instagram.com/nivelpropiedades"
+        href="https://www.instagram.com/nivelpropiedadesrm"
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Instagram"
