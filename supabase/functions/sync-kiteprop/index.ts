@@ -25,6 +25,8 @@ interface KiteProperty {
   address: string;
   location: string;
   zone: string;
+  lat: number | null;
+  lng: number | null;
   rooms: number;
   meters: string;
   bathrooms: string;
@@ -45,6 +47,8 @@ interface DbProperty {
   address: string;
   location: string;
   zone: string;
+  lat: number | null;
+  lng: number | null;
   rooms: number;
   meters: string;
   bathrooms: string;
@@ -467,6 +471,23 @@ async function scrapePropertyDetail(url: string, operation: "venta" | "alquiler"
   if (zone === "" || zone === location) zone = `${location} Centro`;
   zone = zone.toUpperCase();
 
+  // ── Coordenadas ──────────────────────────────────────────────────────────────
+  // KiteProp ya tiene la dirección geocodificada (el agente la elige con un
+  // autocompletado al cargar el aviso) y la usa para armar su propio mapa:
+  // <a href="https://maps.google.com/?q=LAT,LNG">. Usamos esas mismas
+  // coordenadas en vez de re-geocodificar texto libre en el frontend, que es
+  // ambiguo (p. ej. "Merlo" es a la vez una calle en Castelar y una ciudad
+  // distinta a 30km).
+  let lat: number | null = null;
+  let lng: number | null = null;
+  const coordMatch = html.match(
+    /maps\.google\.com\/\?q=(-?\d+\.\d+),(-?\d+\.\d+)/i
+  );
+  if (coordMatch) {
+    lat = parseFloat(coordMatch[1]);
+    lng = parseFloat(coordMatch[2]);
+  }
+
   // ── Descripción ───────────────────────────────────────────────────────────────
   let description = "";
   // Buscar el bloque de descripción (generalmente el párrafo más largo)
@@ -499,6 +520,8 @@ async function scrapePropertyDetail(url: string, operation: "venta" | "alquiler"
     address,
     location,
     zone,
+    lat,
+    lng,
     rooms,
     meters,
     bathrooms,
@@ -717,6 +740,8 @@ function hasChanges(kite: KiteProperty, db: DbProperty): boolean {
     ["price", kite.price, db.price],
     ["address", kite.address, db.address],
     ["location", kite.location, db.location],
+    ["lat", kite.lat, db.lat],
+    ["lng", kite.lng, db.lng],
     ["rooms", kite.rooms, db.rooms],
     ["meters", kite.meters, db.meters],
     ["bathrooms", kite.bathrooms, db.bathrooms],
@@ -786,6 +811,8 @@ function buildPayload(
     location: kite.location,
     zone: kite.zone,
     address: kite.address,
+    lat: kite.lat,
+    lng: kite.lng,
     rooms: kite.rooms,
     price: kite.price,
     expenses: kite.expenses,

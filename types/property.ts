@@ -6,6 +6,8 @@ export interface Property {
   location: string;
   zone: string;
   address: string;
+  lat?: number | null;
+  lng?: number | null;
   rooms: number;
   price: string;
   expenses: string;
@@ -39,6 +41,8 @@ export function mapDbRow(row: Record<string, unknown>): Property {
     location: (row.location as string) || "",
     zone: (row.zone as string) || "",
     address: (row.address as string) || "",
+    lat: (row.lat as number) ?? null,
+    lng: (row.lng as number) ?? null,
     rooms: (row.rooms as number) || 0,
     price: (row.price as string) || "",
     expenses: (row.expenses as string) || "",

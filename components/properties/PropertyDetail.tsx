@@ -54,13 +54,17 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
     { label: "Destaque", value: property.highlight },
   ].filter((s) => s.value && s.value !== "0" && s.value !== "No aplica");
 
-  // Incluir barrio y provincia: la sola calle es ambigua (ej. "Merlo" es a la vez
-  // una calle en Castelar y una ciudad/partido distinta a 30km), así que el mapa
-  // sin este contexto puede geocodificar al lugar equivocado.
+  // Preferir las coordenadas exactas (vienen del propio KiteProp, que ya las
+  // tiene geocodificadas). Sin coordenadas, geocodificar texto es ambiguo —
+  // ej. "Merlo" es a la vez una calle en Castelar y una ciudad/partido a
+  // 30km— así que ese caso queda como respaldo agregando barrio y provincia.
+  const hasCoords = typeof property.lat === "number" && typeof property.lng === "number";
   const fullAddress = [property.address, property.location, "Buenos Aires, Argentina"]
     .filter(Boolean)
     .join(", ");
-  const mapQuery = encodeURIComponent(fullAddress);
+  const mapQuery = hasCoords
+    ? `${property.lat},${property.lng}`
+    : encodeURIComponent(fullAddress);
 
   return (
     <>
