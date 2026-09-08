@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const footerLinks = [
   { label: "Inicio", href: "/", op: null },
-  { label: "Venta", href: "/", op: "venta" },
-  { label: "Alquileres", href: "/", op: "alquiler" },
+  { label: "Venta", href: "/?op=venta#busqueda", op: "venta" },
+  { label: "Alquileres", href: "/?op=alquiler#busqueda", op: "alquiler" },
   { label: "Desarrolladores", href: "/desarrolladores", op: null },
   { label: "Sobre nosotros", href: "/nosotros", op: null },
   { label: "Contacto", href: "/contacto", op: null },
@@ -17,13 +17,13 @@ export function Footer() {
 
   const handleClick = (link: typeof footerLinks[0], e: React.MouseEvent) => {
     if (link.op) {
-      e.preventDefault();
-      if (pathname !== "/") {
-        window.location.href = `/?op=${link.op}`;
-      } else {
+      if (pathname === "/") {
+        e.preventDefault();
         window.dispatchEvent(new CustomEvent("nivel-quick-search", { detail: { op: link.op } }));
       }
-    } else if (link.href === "/" && pathname === "/") {
+      return;
+    }
+    if (link.href === "/" && pathname === "/") {
       e.preventDefault();
       window.dispatchEvent(new CustomEvent("nivel-go-home"));
     }

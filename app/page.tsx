@@ -299,7 +299,22 @@ export default function HomePage() {
     setSelectedProperty(property);
     setView("detail");
     window.history.pushState(null, "", `/propiedad-${shortId(property.id)}`);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Instantáneo, no "smooth": el DOM largo del home va a ser reemplazado por
+    // el de la ficha (mucho más corto) en el próximo render, y una animación
+    // de scroll en curso se corta a mitad de camino cuando eso pasa —
+    // la ficha terminaba abriéndose scrolleada. Un salto instantáneo a 0
+    // siempre es válido y no puede quedar "a mitad" de nada.
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  // Doble rAF: espera a que el nuevo view haya pintado (layout + paint) antes
+  // de restaurar el scroll, más confiable que un setTimeout con delay fijo.
+  function restoreScrollNextFrame(y: number) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: y, behavior: "auto" });
+      });
+    });
   }
 
   function goBack() {
@@ -307,13 +322,13 @@ export default function HomePage() {
     if (lastViewRef.current === "search" && searchResultsRef.current.length > 0) {
       setView("search");
       window.history.pushState(null, "", lastSearchUrlRef.current);
-      setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
+      restoreScrollNextFrame(lastScrollYRef.current);
     } else {
       setView("main");
       window.history.replaceState(null, "", "/");
       window.dispatchEvent(new CustomEvent("nivel-go-home"));
       if (counterHasAnimated) setCounter46(46);
-      setTimeout(() => window.scrollTo({ top: lastScrollYRef.current, behavior: "smooth" }), 50);
+      restoreScrollNextFrame(lastScrollYRef.current);
     }
   }
 

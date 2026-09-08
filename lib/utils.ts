@@ -28,3 +28,14 @@ export function matchesRooms(propertyRooms: number, selected: string): boolean {
   if (selected === "5") return propertyRooms >= 5;
   return propertyRooms === Number(selected);
 }
+
+/** Id corto usado en la URL pública /propiedad-{shortId} (parte antes del primer "-" del uuid/id). */
+export function shortId(id: number | string): string {
+  const s = String(id);
+  return s.includes("-") ? s.split("-")[0] : s;
+}
+
+/** URL pública canónica de una propiedad, sin query params ni hash. */
+export function getPropertyPath(id: number | string): string {
+  return `/propiedad-${shortId(id)}`;
+}

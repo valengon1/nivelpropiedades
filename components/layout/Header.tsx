@@ -10,8 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
   { label: "Inicio", href: "/", op: null },
-  { label: "Venta", href: "/", op: "venta" },
-  { label: "Alquileres", href: "/", op: "alquiler" },
+  { label: "Venta", href: "/?op=venta#busqueda", op: "venta" },
+  { label: "Alquileres", href: "/?op=alquiler#busqueda", op: "alquiler" },
   { label: "Desarrolladores", href: "/desarrolladores", op: null },
   { label: "Sobre nosotros", href: "/nosotros", op: null },
   { label: "Contacto", href: "/contacto", op: null },
@@ -55,14 +55,16 @@ export function Header() {
     setMenuOpen(false);
 
     if (link.op) {
-      e.preventDefault();
-      if (pathname !== "/") {
-        window.location.href = `/?op=${link.op}`;
-      } else {
+      if (pathname === "/") {
+        // Ya en home: aplicar el filtro en caliente en vez de navegar
+        // (el href sigue siendo correcto para clic derecho / abrir en pestaña).
+        e.preventDefault();
         window.dispatchEvent(
           new CustomEvent("nivel-quick-search", { detail: { op: link.op } })
         );
       }
+      // En otra página: se deja la navegación normal del <Link> hacia
+      // /?op=...#busqueda — al montar, la home lee el query y aplica el filtro.
       return;
     }
 

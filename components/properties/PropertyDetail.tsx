@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Share2, MessageCircle, Maximize2 } from "lucide-react";
+import { ArrowLeft, MapPin, MessageCircle, Maximize2 } from "lucide-react";
 import { type Property } from "@/types/property";
-import { formatMoney, buildWhatsappLink } from "@/lib/utils";
+import { formatMoney, buildWhatsappLink, getPropertyPath } from "@/lib/utils";
 import { PropertyLightbox } from "@/components/properties/PropertyLightbox";
 import { Badge } from "@/components/ui/badge";
+import { ShareButton } from "@/components/ui/share-button";
 
 interface PropertyDetailProps {
   property: Property;
@@ -18,6 +19,26 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [thumbIndex, setThumbIndex] = useState(0);
+  const lightboxTriggerRef = useRef<HTMLButtonElement>(null);
+
+  const openLightbox = (i: number) => {
+    setLightboxIndex(i);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    // Devolver el foco a la imagen que abrió la galería.
+    requestAnimationFrame(() => lightboxTriggerRef.current?.focus());
+  };
+
+  // Marca el <body> mientras la ficha está montada, para que la burbuja
+  // flotante de WhatsApp (global, ver FloatingSocials) se oculte en celular
+  // y no duplique la barra fija de WhatsApp de acá abajo.
+  useEffect(() => {
+    document.body.setAttribute("data-property-detail", "1");
+    return () => document.body.removeAttribute("data-property-detail");
+  }, []);
 
   const images =
     property.images?.length
@@ -31,13 +52,10 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
     `Dirección: ${property.address}. Operación: ${operationLabel}. ` +
     `Precio: ${formatMoney(property.price)}.`;
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try { await navigator.share({ title: property.title, url: window.location.href }); } catch (_) {}
-    } else {
-      try { await navigator.clipboard.writeText(window.location.href); } catch (_) {}
-    }
-  };
+  // URL pública canónica de la propiedad — siempre la misma, sin importar
+  // desde qué búsqueda/filtro se llegó a esta ficha.
+  const canonicalUrl =
+    typeof window !== "undefined" ? `${window.location.origin}${getPropertyPath(property.id)}` : "";
 
   const specs = [
     { label: "Tipo", value: property.type },
@@ -73,14 +91,14 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="min-h-screen bg-white"
+        className="min-h-screen bg-white pb-24 lg:pb-0"
       >
         {/* Back bar */}
         <div className="border-b border-[#e5e5e5] bg-white sticky top-[72px] z-30">
           <div className="container-site flex items-center gap-4 h-12">
             <button
               onClick={onBack}
-              className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6b6b6b] hover:text-[#0a0a0a] transition-colors"
+              className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6b6b6b] hover:text-[#0a0a0a] active:scale-[0.98] transition-all duration-150 -ml-1 pl-1 pr-2 py-1 min-h-[44px]"
             >
               <ArrowLeft size={14} />
               Volver
@@ -100,10 +118,13 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
             {/* Left: images */}
             <div className="min-w-0 overflow-hidden">
               {/* Main image */}
-              <div
-                className="relative w-full bg-[#f7f7f6] overflow-hidden cursor-zoom-in mb-3"
+              <button
+                type="button"
+                ref={lightboxTriggerRef}
+                className="relative w-full bg-[#f7f7f6] overflow-hidden cursor-zoom-in mb-3 block text-left"
                 style={{ aspectRatio: "16/10", maxHeight: "65vh" }}
-                onClick={() => { setLightboxIndex(thumbIndex); setLightboxOpen(true); }}
+                onClick={() => openLightbox(thumbIndex)}
+                aria-label={`Ampliar foto ${thumbIndex + 1} de ${images.length}`}
               >
                 {images[thumbIndex] && (
                   <Image
@@ -119,7 +140,7 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
                   <Maximize2 size={11} />
                   {images.length > 1 && <span>{thumbIndex + 1}/{images.length}</span>}
                 </div>
-              </div>
+              </button>
 
               {/* Carousel thumbnails */}
               {images.length > 1 && (
@@ -174,23 +195,17 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
                 ))}
               </div>
 
-              {/* CTAs */}
+              {/* CTAs — el de WhatsApp se repite fijo abajo en celular, así que acá queda solo para desktop */}
               <div className="grid gap-3">
                 <a
                   href={buildWhatsappLink(whatsappMessage)}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 h-12 bg-[#0a0a0a] text-white text-[11px] font-semibold tracking-[0.08em] uppercase hover:bg-[#1a1a1a] transition-colors"
+                  className="hidden lg:flex items-center justify-center gap-2 h-12 min-h-[44px] bg-[#0a0a0a] text-white text-[11px] font-semibold tracking-[0.08em] uppercase hover:bg-[#1a1a1a] active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a0a0a] focus-visible:ring-offset-2"
                 >
                   <MessageCircle size={15} />
                   Consultar por WhatsApp
                 </a>
-                <button
-                  onClick={handleShare}
-                  className="flex items-center justify-center gap-2 h-11 border border-[#e5e5e5] text-[#6b6b6b] text-[11px] font-semibold tracking-[0.08em] uppercase hover:border-[#0a0a0a] hover:text-[#0a0a0a] transition-colors"
-                >
-                  <Share2 size={13} />
-                  Compartir propiedad
-                </button>
+                <ShareButton title={property.title} url={canonicalUrl} />
               </div>
             </div>
           </div>
@@ -227,16 +242,30 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
         </div>
       </motion.div>
 
-      {lightboxOpen && (
-        <PropertyLightbox
-          images={images}
-          index={lightboxIndex}
-          onClose={() => setLightboxOpen(false)}
-          onNext={() => setLightboxIndex((i) => (i + 1) % images.length)}
-          onPrev={() => setLightboxIndex((i) => (i - 1 + images.length) % images.length)}
-          onSetIndex={setLightboxIndex}
-        />
-      )}
+      {/* Barra fija de WhatsApp en celular — no tapa contenido gracias al pb-24 del wrapper */}
+      <div
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#e5e5e5] px-4 pt-3"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
+        <a
+          href={buildWhatsappLink(whatsappMessage)}
+          target="_blank" rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 h-12 min-h-[44px] bg-[#0a0a0a] text-white text-[11px] font-semibold tracking-[0.08em] uppercase active:scale-[0.98] transition-all duration-150"
+        >
+          <MessageCircle size={15} />
+          Consultar por WhatsApp
+        </a>
+      </div>
+
+      <PropertyLightbox
+        images={images}
+        index={lightboxIndex}
+        open={lightboxOpen}
+        onOpenChange={(o) => (o ? setLightboxOpen(true) : closeLightbox())}
+        onNext={() => setLightboxIndex((i) => (i + 1) % images.length)}
+        onPrev={() => setLightboxIndex((i) => (i - 1 + images.length) % images.length)}
+        onSetIndex={setLightboxIndex}
+      />
     </>
   );
 }
