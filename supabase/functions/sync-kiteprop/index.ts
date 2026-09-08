@@ -274,6 +274,19 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+/**
+ * Extrae el valor de una fila de la tabla de specs de KiteProp:
+ * <th>Label</th><td>Valor</td> → "Valor"
+ */
+function extractTableField(html: string, label: string): string {
+  const re = new RegExp(
+    `<th[^>]*>\\s*${label}\\s*<\\/th>\\s*<td[^>]*>([\\s\\S]*?)<\\/td>`,
+    "i"
+  );
+  const m = html.match(re);
+  return m ? stripHtml(m[1]).trim().replace(/\s{2,}/g, " ") : "";
+}
+
 // Like stripHtml but preserves paragraph/line breaks and decodes HTML entities.
 // Used for description fields to keep the original formatting from KiteProp.
 function stripHtmlBlock(html: string): string {
@@ -405,26 +418,36 @@ async function scrapePropertyDetail(url: string, operation: "venta" | "alquiler"
   }
 
   // ── Ubicación / Barrio ────────────────────────────────────────────────────────
-  const knownLocations = [
-    "Ramos Mejía",
-    "Haedo",
-    "Villa Sarmiento",
-    "Ciudadela",
-    "Villa Luzuriaga",
-    "Morón",
-    "La Matanza",
-    "Castelar",
-    "Ituzaingó",
-    "El Palomar",
-    "Liniers",
-    "Versalles",
-    "Villa del Parque",
-  ];
-  let location = "";
-  for (const loc of knownLocations) {
-    if (text.includes(loc)) {
-      location = loc;
-      break;
+  // KiteProp expone el barrio en la misma tabla de specs: <th>Barrio</th><td>Castelar</td>.
+  // Usar ese campo estructurado en vez de buscar palabras clave en todo el texto visible:
+  // el pie de página de TODAS las fichas repite la dirección de la inmobiliaria
+  // ("Av. Gaona 2422, Ramos Mejía"), así que una búsqueda de texto libre con "Ramos Mejía"
+  // primero en la lista terminaba marcando casi todas las propiedades como Ramos Mejía,
+  // sin importar el barrio real.
+  let location = extractTableField(html, "Barrio");
+
+  if (!location) {
+    // Fallback: keywords conocidos en el texto visible
+    const knownLocations = [
+      "Ramos Mejía",
+      "Haedo",
+      "Villa Sarmiento",
+      "Ciudadela",
+      "Villa Luzuriaga",
+      "Morón",
+      "La Matanza",
+      "Castelar",
+      "Ituzaingó",
+      "El Palomar",
+      "Liniers",
+      "Versalles",
+      "Villa del Parque",
+    ];
+    for (const loc of knownLocations) {
+      if (text.includes(loc)) {
+        location = loc;
+        break;
+      }
     }
   }
   if (!location) {
@@ -439,12 +462,8 @@ async function scrapePropertyDetail(url: string, operation: "venta" | "alquiler"
   }
 
   // ── Zona ─────────────────────────────────────────────────────────────────────
-  // KiteProp muestra zona justo después del título (ej: "Ramos norte")
-  let zone = location;
-  const zoneMatch = text.match(
-    /(?:Ramos norte|Ramos sur|Ramos centro|centro|norte|sur|este|oeste)\b/i
-  );
-  if (zoneMatch) zone = zoneMatch[0].trim();
+  // Ídem: KiteProp la expone estructurada (<th>Zona</th><td>NORTE</td>) junto al Barrio.
+  let zone = extractTableField(html, "Zona") || location;
   if (zone === "" || zone === location) zone = `${location} Centro`;
   zone = zone.toUpperCase();
 
@@ -653,7 +672,11 @@ function findMatch(kite: KiteProperty, db: DbProperty[]): DbProperty | null {
   const byUrl = db.find((p) => p.source_url === kite.sourceUrl);
   if (byUrl) return byUrl;
 
-  // 3. Por título normalizado
+  // 3. Por título normalizado + operación
+  // (Requiere que también coincida la operación: un mismo inmueble puede
+  // publicarse en venta Y en alquiler con títulos idénticos -por copy/paste
+  // del anunciante en el CRM-, y sin este chequeo ambos avisos colapsan en una
+  // sola fila que se pisa entre sí en cada sync.)
   const norm = (s: string) =>
     s
       .toLowerCase()
@@ -661,7 +684,9 @@ function findMatch(kite: KiteProperty, db: DbProperty[]): DbProperty | null {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "");
   const kiteNorm = norm(kite.title);
-  const byTitle = db.find((p) => norm(p.title) === kiteNorm);
+  const byTitle = db.find(
+    (p) => norm(p.title) === kiteNorm && p.operation === kite.operation
+  );
   if (byTitle) return byTitle;
 
   // 4. Por dirección + operación

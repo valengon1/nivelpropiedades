@@ -54,7 +54,13 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
     { label: "Destaque", value: property.highlight },
   ].filter((s) => s.value && s.value !== "0" && s.value !== "No aplica");
 
-  const mapQuery = encodeURIComponent(property.address);
+  // Incluir barrio y provincia: la sola calle es ambigua (ej. "Merlo" es a la vez
+  // una calle en Castelar y una ciudad/partido distinta a 30km), así que el mapa
+  // sin este contexto puede geocodificar al lugar equivocado.
+  const fullAddress = [property.address, property.location, "Buenos Aires, Argentina"]
+    .filter(Boolean)
+    .join(", ");
+  const mapQuery = encodeURIComponent(fullAddress);
 
   return (
     <>
@@ -200,7 +206,7 @@ export function PropertyDetail({ property, onBack }: PropertyDetailProps) {
             <p className="section-kicker mb-4 text-center">Ubicación</p>
             <p className="text-sm text-[#6b6b6b] mb-4 flex items-center justify-center gap-1.5">
               <MapPin size={13} />
-              {property.address}
+              {[property.address, property.location].filter(Boolean).join(", ")}
             </p>
             <div className="mx-auto max-w-3xl h-[320px] bg-[#f7f7f6] overflow-hidden relative">
               <iframe
