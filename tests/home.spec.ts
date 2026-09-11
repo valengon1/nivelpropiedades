@@ -29,7 +29,7 @@ test.describe("Home - Carga y Hero", () => {
   test("hero 'Ver ventas' dispara la vista de búsqueda", async ({ page }) => {
     await page.getByRole("button", { name: /ver ventas/i }).click();
     await expect(page.locator("h1")).toContainText(/resultado/i);
-    await expect(page.url()).toContain("op=venta");
+    await expect(page.url()).toContain("/venta");
   });
 
   test("hero 'Ver alquileres' dispara la vista de búsqueda", async ({
@@ -37,7 +37,7 @@ test.describe("Home - Carga y Hero", () => {
   }) => {
     await page.getByRole("button", { name: /ver alquileres/i }).click();
     await expect(page.locator("h1")).toContainText(/resultado/i);
-    await expect(page.url()).toContain("op=alquiler");
+    await expect(page.url()).toContain("/alquileres");
   });
 
   test("sección de propiedades destacadas en venta se muestra", async ({

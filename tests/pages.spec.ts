@@ -102,7 +102,7 @@ test.describe("Navegación - Header Desktop", () => {
     }
 
     await page.locator("header nav").getByRole("link", { name: /^venta$/i }).click();
-    await expect(page).toHaveURL(/op=venta/);
+    await expect(page).toHaveURL(/\/venta/);
     await expect(page.locator("h1")).toContainText(/resultado/i);
   });
 
@@ -114,7 +114,7 @@ test.describe("Navegación - Header Desktop", () => {
     }
 
     await page.locator("header nav").getByRole("link", { name: /alquileres/i }).click();
-    await expect(page).toHaveURL(/op=alquiler/);
+    await expect(page).toHaveURL(/\/alquileres/);
     await expect(page.locator("h1")).toContainText(/resultado/i);
   });
 

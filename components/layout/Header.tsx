@@ -11,8 +11,8 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 const navLinks = [
   { label: "Inicio", href: "/", op: null },
-  { label: "Venta", href: "/?op=venta#busqueda", op: "venta" },
-  { label: "Alquileres", href: "/?op=alquiler#busqueda", op: "alquiler" },
+  { label: "Venta", href: "/venta", op: "venta" },
+  { label: "Alquileres", href: "/alquileres", op: "alquiler" },
   { label: "Desarrolladores", href: "/desarrolladores", op: null },
   { label: "Sobre nosotros", href: "/nosotros", op: null },
   { label: "Contacto", href: "/contacto", op: null },

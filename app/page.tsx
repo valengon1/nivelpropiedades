@@ -136,8 +136,15 @@ export default function HomePage() {
     // If the hash or path points to a specific property, let the hash routing effect handle it
     if (window.location.hash.replace("#", "").startsWith("propiedad-")) return;
     if (/^\/propiedad-/.test(window.location.pathname)) return;
+
+    // URLs lindas: /venta y /alquileres (redirigidas a "/" por Netlify,
+    // ver netlify.toml) equivalen a llegar con ?op=venta / ?op=alquiler.
+    const pathname = window.location.pathname;
+    const cleanPathOp =
+      pathname === "/venta" ? "venta" : pathname === "/alquileres" ? "alquiler" : "";
+
     const p = new URLSearchParams(window.location.search);
-    const op = p.get("op") || "";
+    const op = cleanPathOp || p.get("op") || "";
     const kw = p.get("q") || "";
     const type = p.get("type") || "";
     const loc = p.get("loc") || "";
@@ -152,6 +159,11 @@ export default function HomePage() {
       };
       setFilters(newFilters);
       runSearchWithFilters(newFilters, properties);
+      if (cleanPathOp) {
+        // Mantener /venta o /alquileres en la barra de direcciones en vez
+        // de que runSearchWithFilters la reescriba a /?op=...
+        window.history.replaceState(null, "", pathname);
+      }
       // Tell the Header which nav link to highlight (fromUrl flag prevents double search)
       if (op === "venta" || op === "alquiler") {
         window.dispatchEvent(new CustomEvent("nivel-quick-search", { detail: { op, fromUrl: true } }));
@@ -201,6 +213,9 @@ export default function HomePage() {
       const newFilters = { ...INITIAL_FILTERS, operation: op };
       setFilters(newFilters);
       runSearchWithFilters(newFilters, properties);
+      // URL linda (/venta, /alquileres) en vez de /?op=...
+      const cleanPath = op === "venta" ? "/venta" : op === "alquiler" ? "/alquileres" : null;
+      if (cleanPath) window.history.replaceState(null, "", cleanPath);
     };
     window.addEventListener("nivel-quick-search", handler);
     return () => window.removeEventListener("nivel-quick-search", handler);
@@ -320,6 +335,9 @@ export default function HomePage() {
     const newFilters = { ...INITIAL_FILTERS, operation };
     setFilters(newFilters);
     runSearchWithFilters(newFilters, properties);
+    // URL linda (/venta, /alquileres) en vez de /?op=...
+    const cleanPath = operation === "venta" ? "/venta" : operation === "alquiler" ? "/alquileres" : null;
+    if (cleanPath) window.history.replaceState(null, "", cleanPath);
   }
 
   function openDetail(property: Property) {
@@ -632,7 +650,7 @@ export default function HomePage() {
             )}
 
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div data-testid="featured-skeleton" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(3)].map((_, i) => (
                   <PropertyCardSkeleton key={i} />
                 ))}

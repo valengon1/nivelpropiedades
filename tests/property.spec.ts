@@ -11,8 +11,12 @@ test.describe("Detalle de Propiedad", () => {
   }) => {
     const section = page.locator("section#venta");
     await expect(section).toBeVisible();
-    // Esperar a que el skeleton de carga desaparezca (los divs animate-pulse)
-    await expect(section.locator(".animate-pulse").first()).not.toBeVisible({ timeout: 15000 });
+    // Esperar a que el skeleton de carga inicial desaparezca. Ojo: no usar
+    // ".animate-pulse" acá — las PropertyCard individuales también lo usan
+    // como placeholder mientras cargan su imagen (puede tardar más que el
+    // fetch de datos), así que ese selector ya no identifica únicamente al
+    // skeleton de carga inicial.
+    await expect(section.getByTestId("featured-skeleton")).not.toBeVisible({ timeout: 15000 });
     // Puede mostrar cards o el placeholder "Próximamente"
     const hasCards = await section.locator("article").count();
     const hasPlaceholder = await section.getByText(/próximamente/i).count();

@@ -94,7 +94,10 @@ test.describe("Mobile - Layout y Navegación", () => {
 
     const searchInput = page.locator('input[type="text"]').first();
     await expect(searchInput).toBeVisible();
-    await searchInput.fill("test");
+    // pressSequentially en vez de fill: más confiable para que React
+    // capture el onChange en mobile (mismo patrón que en search.spec.ts).
+    await searchInput.click();
+    await searchInput.pressSequentially("test", { delay: 30 });
     await expect(searchInput).toHaveValue("test");
   });
 

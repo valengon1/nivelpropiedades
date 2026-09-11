@@ -11,3 +11,13 @@
   from = "/propiedad-*"
   to = "/"
   status = 200
+
+[[redirects]]
+  from = "/venta"
+  to = "/"
+  status = 200
+
+[[redirects]]
+  from = "/alquileres"
+  to = "/"
+  status = 200

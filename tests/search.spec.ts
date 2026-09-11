@@ -19,8 +19,9 @@ test.describe("Búsqueda y Filtros", () => {
   }) => {
     const searchInput = page.locator('input[type="text"]').first();
     await searchInput.fill("departamento");
-    // Usar el botón Buscar en lugar de Enter para mayor compatibilidad mobile
-    await page.getByRole("button", { name: /^buscar$/i }).click();
+    // Enter funciona en desktop (PropertySearch) y en mobile (MobileFilterSheet) por igual;
+    // el botón "Buscar" solo existe en el panel de desktop.
+    await searchInput.press("Enter");
     await expect(page.locator("h1")).toContainText(/resultado/i);
   });
 
@@ -31,7 +32,7 @@ test.describe("Búsqueda y Filtros", () => {
     await searchInput.pressSequentially("casa", { delay: 30 });
     // Verificar que el input tiene el valor antes de buscar
     await expect(searchInput).toHaveValue("casa");
-    await page.getByRole("button", { name: /^buscar$/i }).click();
+    await searchInput.press("Enter");
     await expect(page).toHaveURL(/q=casa/);
   });
 
@@ -47,12 +48,12 @@ test.describe("Búsqueda y Filtros", () => {
 
   test("filtro por operación 'venta' actualiza la URL", async ({ page }) => {
     await page.getByRole("button", { name: /ver ventas/i }).click();
-    await expect(page).toHaveURL(/op=venta/);
+    await expect(page).toHaveURL(/\/venta/);
   });
 
   test("filtro por operación 'alquiler' actualiza la URL", async ({ page }) => {
     await page.getByRole("button", { name: /ver alquileres/i }).click();
-    await expect(page).toHaveURL(/op=alquiler/);
+    await expect(page).toHaveURL(/\/alquileres/);
   });
 
   test("botón Limpiar regresa a la vista principal", async ({ page }) => {
