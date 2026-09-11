@@ -1020,13 +1020,24 @@ async function syncAll(
     );
 
     if (!dry) {
-      await supabase
+      // OJO: este update no chequeaba el error de respuesta y lo daba por
+      // exitoso igual — así quedaron 5 propiedades "archivadas" en los logs
+      // desde junio/julio que en realidad nunca se actualizaron en la DB.
+      const { error } = await supabase
         .from("properties")
         .update({
           publish_status: "Archivada",
           source_synced_at: new Date().toISOString(),
         })
         .eq("id", db.id);
+
+      if (error) {
+        console.error(
+          `[SYNC] ✗ Error archivando "${db.title}" (KP${db.kiteprop_id}): ${error.message}`
+        );
+        result.errors.push(`archive:KP${db.kiteprop_id}: ${error.message}`);
+        continue;
+      }
     }
 
     result.archived.push(`KP${db.kiteprop_id}: ${db.title}`);
