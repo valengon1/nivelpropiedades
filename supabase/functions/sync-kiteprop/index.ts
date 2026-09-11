@@ -146,8 +146,12 @@ function detectNextPage(html: string, currentPage: number): boolean {
   );
 }
 
-async function getAllPropertyUrls(): Promise<Map<string, "venta" | "alquiler">> {
+async function getAllPropertyUrls(): Promise<{
+  urlMap: Map<string, "venta" | "alquiler">;
+  foundByOp: Record<"venta" | "alquiler", number>;
+}> {
   const urlMap = new Map<string, "venta" | "alquiler">();
+  const foundByOp: Record<"venta" | "alquiler", number> = { venta: 0, alquiler: 0 };
 
   // Secciones separadas — fuente de verdad para la operación (sale → venta, rental → alquiler)
   const sections: { url: string; op: "venta" | "alquiler"; opType: string }[] = [
@@ -169,7 +173,10 @@ async function getAllPropertyUrls(): Promise<Map<string, "venta" | "alquiler">> 
       if (links.length === 0) break;
 
       for (const link of links) {
-        if (!urlMap.has(link)) urlMap.set(link, section.op);
+        if (!urlMap.has(link)) {
+          urlMap.set(link, section.op);
+          foundByOp[section.op]++;
+        }
       }
 
       goNext = detectNextPage(html, page);
@@ -184,14 +191,18 @@ async function getAllPropertyUrls(): Promise<Map<string, "venta" | "alquiler">> 
     for (const link of extractPropertyLinks(mainHtml)) {
       if (!urlMap.has(link)) {
         const slug = link.split("/").pop() ?? "";
-        urlMap.set(link, slug.includes("alquiler") ? "alquiler" : "venta");
+        const op = slug.includes("alquiler") ? "alquiler" : "venta";
+        urlMap.set(link, op);
+        foundByOp[op]++;
       }
     }
     await sleep(REQ_DELAY_MS);
   }
 
-  console.log(`[SYNC] ✔ ${urlMap.size} URLs encontradas en KiteProp`);
-  return urlMap;
+  console.log(
+    `[SYNC] ✔ ${urlMap.size} URLs encontradas en KiteProp (venta: ${foundByOp.venta}, alquiler: ${foundByOp.alquiler})`
+  );
+  return { urlMap, foundByOp };
 }
 
 // ─── KiteProp Scraper: Property Detail ───────────────────────────────────────
@@ -849,7 +860,7 @@ async function syncAll(
 
   // 1. Obtener todas las URLs de KiteProp (con operación ya conocida desde el listado)
   console.log("[SYNC] ▶ Leyendo propiedades de KiteProp...");
-  const kiteUrlMap = await getAllPropertyUrls();
+  const { urlMap: kiteUrlMap, foundByOp } = await getAllPropertyUrls();
   if (kiteUrlMap.size === 0) {
     console.warn("[SYNC] ⚠ No se encontraron propiedades en KiteProp");
     return result;
@@ -930,7 +941,12 @@ async function syncAll(
       result.created.push(`KP${kite.kitepropId}: ${kite.title}`);
     } else {
       // ── VERIFICAR CAMBIOS ──────────────────────────────────────────────────
-      const changed = hasChanges(kite, existing);
+      // Si la propiedad matcheó contra KiteProp (sigue existiendo ahí) pero en
+      // la DB está "Archivada", NO puede tratarse como "sin cambios": eso la
+      // dejaría archivada para siempre aunque siga publicada en KiteProp. Se
+      // fuerza el camino de "actualizar" para que se restaure a "Publicada".
+      const wasWronglyArchived = existing.publish_status === "Archivada";
+      const changed = hasChanges(kite, existing) || wasWronglyArchived;
 
       if (!changed) {
         // Sin cambios — solo actualizar campos de sync si faltan
@@ -1007,11 +1023,37 @@ async function syncAll(
   }
 
   // 5. Archivar propiedades que ya no están en KiteProp
+  //
+  // Red de seguridad: si esta corrida encontró 0 propiedades de una operación
+  // en KiteProp pero SÍ hay filas de esa operación en la DB, es casi seguro
+  // un fallo de scraping (bloqueo, timeout, otra corrida pisándose encima —
+  // ver nota sobre cron duplicados) y no que de golpe se dieron de baja TODAS
+  // las propiedades de esa operación. En ese caso no se archiva nada de esa
+  // operación en esta corrida, para no vaciar el sitio por un error transitorio.
+  const dbHasOp = { venta: false, alquiler: false };
+  for (const db of dbProps) {
+    if (db.operation === "venta") dbHasOp.venta = true;
+    if (db.operation === "alquiler") dbHasOp.alquiler = true;
+  }
+  const skipArchiveOp = {
+    venta: dbHasOp.venta && foundByOp.venta === 0,
+    alquiler: dbHasOp.alquiler && foundByOp.alquiler === 0,
+  };
+  for (const op of ["venta", "alquiler"] as const) {
+    if (skipArchiveOp[op]) {
+      const msg = `Se encontraron 0 propiedades de "${op}" en KiteProp pero hay filas de esa operación en la DB — posible fallo de scraping. No se archiva nada de "${op}" esta corrida.`;
+      console.warn(`[SYNC] ⚠ ${msg}`);
+      result.errors.push(`safety-skip-archive:${op}: ${msg}`);
+    }
+  }
+
   const toArchive = dbProps.filter(
     (db) =>
       db.kiteprop_id &&
       !processedIds.has(db.kiteprop_id) &&
-      db.publish_status !== "Archivada"
+      db.publish_status !== "Archivada" &&
+      !(db.operation === "venta" && skipArchiveOp.venta) &&
+      !(db.operation === "alquiler" && skipArchiveOp.alquiler)
   );
 
   for (const db of toArchive) {
