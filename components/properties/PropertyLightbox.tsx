@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
-import { motion, AnimatePresence, useReducedMotion, type PanInfo } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+  useMotionValue,
+  animate,
+  type PanInfo,
+} from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface LightboxProps {
@@ -18,8 +25,17 @@ interface LightboxProps {
 
 const SWIPE_DISTANCE = 60;
 const SWIPE_VELOCITY = 500;
-const ZOOM_SCALE = 2.4;
+const DOUBLE_TAP_SCALE = 2.4;
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
 const DOUBLE_TAP_MS = 300;
+const PAN_BOUND = 220; // límite fijo y generoso para el pan en zoom — simple y suficiente
+
+function touchDistance(touches: React.TouchList | TouchList): number {
+  const a = touches[0];
+  const b = touches[1];
+  return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+}
 
 export function PropertyLightbox({
   images,
@@ -31,23 +47,50 @@ export function PropertyLightbox({
   onSetIndex,
 }: LightboxProps) {
   const reduceMotion = useReducedMotion();
-  const [zoomed, setZoomed] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [touchCount, setTouchCount] = useState(0);
   const lastTapRef = useRef(0);
+  const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
+
+  // Motion values propias (no React state) para que el pinch pueda actualizar
+  // el zoom en cada frame de touchmove sin pasar por un re-render de React.
+  const scale = useMotionValue(1);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const resetZoom = useCallback(
+    (animated = true) => {
+      if (animated && !reduceMotion) {
+        animate(scale, 1, { duration: 0.2 });
+        animate(x, 0, { duration: 0.2 });
+        animate(y, 0, { duration: 0.2 });
+      } else {
+        scale.set(1);
+        x.set(0);
+        y.set(0);
+      }
+      setIsZoomed(false);
+    },
+    [scale, x, y, reduceMotion]
+  );
 
   // El zoom se resetea cada vez que cambia de foto o se cierra la galería.
   useEffect(() => {
-    setZoomed(false);
+    resetZoom(false);
+    setTouchCount(0);
+    pinchRef.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, open]);
 
   const handleNext = useCallback(() => {
-    setZoomed(false);
+    resetZoom(false);
     onNext();
-  }, [onNext]);
+  }, [onNext, resetZoom]);
 
   const handlePrev = useCallback(() => {
-    setZoomed(false);
+    resetZoom(false);
     onPrev();
-  }, [onPrev]);
+  }, [onPrev, resetZoom]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -69,30 +112,106 @@ export function PropertyLightbox({
     });
   }, [open, index, images]);
 
-  const toggleZoom = useCallback(() => {
-    setZoomed((z) => !z);
-  }, []);
+  const toggleDoubleTapZoom = useCallback(() => {
+    if (isZoomed) {
+      resetZoom();
+    } else {
+      if (!reduceMotion) animate(scale, DOUBLE_TAP_SCALE, { duration: 0.2 });
+      else scale.set(DOUBLE_TAP_SCALE);
+      setIsZoomed(true);
+    }
+  }, [isZoomed, resetZoom, scale, reduceMotion]);
 
   const handleImageTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < DOUBLE_TAP_MS) {
-      toggleZoom();
+      toggleDoubleTapZoom();
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
     }
-  }, [toggleZoom]);
+  }, [toggleDoubleTapZoom]);
+
+  // ── Pinch-to-zoom ────────────────────────────────────────────────────────
+  // Framer-motion no trae reconocedor de pinch: se sigue "a mano" con los
+  // eventos táctiles nativos, escalando `scale` en cada movimiento mientras
+  // haya 2 dedos en pantalla.
+  //
+  // El listener de touchmove se agrega con addEventListener en vez de
+  // onTouchMove de React por dos motivos: (1) React marca sus listeners de
+  // touch como passive por default, así que e.preventDefault() no tendría
+  // efecto real (el navegador igual intentaría zoomear/scrollear la
+  // página); y (2) se engancha desde un ref callback en vez de un
+  // useEffect — con este modal (Radix Portal + AnimatePresence, montado
+  // recién cuando `open` pasa a true) un useEffect corriendo por cambios de
+  // `open` seguía viendo el ref en null la primera vez que abría. El ref
+  // callback no tiene ese problema: React lo llama con el nodo real justo
+  // cuando se monta.
+  const pinchContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const onNativeTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault();
+        const dist = touchDistance(e.touches);
+        const ratio = dist / pinchRef.current.startDist;
+        const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchRef.current.startScale * ratio));
+        scale.set(next);
+        setIsZoomed(next > 1.05);
+      }
+    },
+    [scale]
+  );
+
+  const setPinchContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (pinchContainerRef.current) {
+        pinchContainerRef.current.removeEventListener("touchmove", onNativeTouchMove);
+      }
+      pinchContainerRef.current = node;
+      if (node) {
+        node.addEventListener("touchmove", onNativeTouchMove, { passive: false });
+      }
+    },
+    [onNativeTouchMove]
+  );
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      setTouchCount(e.touches.length);
+      if (e.touches.length === 2) {
+        pinchRef.current = {
+          startDist: touchDistance(e.touches),
+          startScale: scale.get(),
+        };
+      }
+    },
+    [scale]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      setTouchCount(e.touches.length);
+      if (e.touches.length < 2) {
+        pinchRef.current = null;
+        if (scale.get() < 1.05) {
+          resetZoom();
+        }
+      }
+    },
+    [scale, resetZoom]
+  );
 
   const handleDragEnd = useCallback(
     (_e: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
-      if (zoomed) return; // en zoom, el drag solo desplaza (pan), no navega
+      if (isZoomed) return; // en zoom, el drag solo desplaza (pan), no navega
       if (info.offset.x < -SWIPE_DISTANCE || info.velocity.x < -SWIPE_VELOCITY) {
         handleNext();
       } else if (info.offset.x > SWIPE_DISTANCE || info.velocity.x > SWIPE_VELOCITY) {
         handlePrev();
       }
     },
-    [zoomed, handleNext, handlePrev]
+    [isZoomed, handleNext, handlePrev]
   );
 
   const transitionDuration = reduceMotion ? 0.01 : 0.2;
@@ -136,7 +255,8 @@ export function PropertyLightbox({
               >
                 <Dialog.Title className="sr-only">Galería de fotos</Dialog.Title>
                 <Dialog.Description className="sr-only">
-                  Usá las flechas del teclado o deslizá para cambiar de foto. Presioná Escape para cerrar.
+                  Usá las flechas del teclado o deslizá para cambiar de foto. Pellizcá con dos
+                  dedos o tocá dos veces para hacer zoom. Presioná Escape para cerrar.
                 </Dialog.Description>
 
                 {/* Header */}
@@ -177,29 +297,35 @@ export function PropertyLightbox({
                   )}
 
                   <div
-                    className="relative w-full overflow-hidden touch-pan-y"
+                    ref={setPinchContainerRef}
+                    className="relative w-full overflow-hidden touch-none"
                     style={{ height: "100%", padding: "0 4px" }}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
                   >
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.div
                         key={index}
                         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
+                        animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: transitionDuration }}
                         className="absolute inset-0"
                       >
                         <motion.div
+                          data-testid="zoomable-image"
                           className="relative w-full h-full"
-                          drag={zoomed ? true : "x"}
-                          dragConstraints={zoomed ? { left: -160, right: 160, top: -160, bottom: 160 } : { left: 0, right: 0 }}
-                          dragElastic={zoomed ? 0.4 : 0.85}
+                          drag={touchCount >= 2 ? false : isZoomed ? true : "x"}
+                          dragConstraints={
+                            isZoomed
+                              ? { left: -PAN_BOUND, right: PAN_BOUND, top: -PAN_BOUND, bottom: PAN_BOUND }
+                              : { left: 0, right: 0 }
+                          }
+                          dragElastic={isZoomed ? 0.15 : 0.85}
                           onDragEnd={handleDragEnd}
                           onClick={handleImageTap}
-                          onDoubleClick={toggleZoom}
-                          animate={{ scale: zoomed ? ZOOM_SCALE : 1 }}
-                          transition={{ duration: transitionDuration }}
-                          style={{ cursor: zoomed ? "grab" : "default" }}
+                          onDoubleClick={toggleDoubleTapZoom}
+                          style={{ cursor: isZoomed ? "grab" : "default", scale, x, y }}
                         >
                           {images[index] && (
                             <Image
