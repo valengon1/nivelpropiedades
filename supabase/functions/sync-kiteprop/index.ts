@@ -7,7 +7,8 @@ const KITEPROP_BASE = "https://nivelpropiedades.kitepropcrm.com";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const STORAGE_BUCKET = "property-images";
-const BATCH_SIZE = 3;         // Propiedades en paralelo
+const BATCH_SIZE = 2;         // Propiedades en paralelo (bajado de 3: la función
+                               // venía cayendo con WORKER_RESOURCE_LIMIT)
 const REQ_DELAY_MS = 700;     // Delay entre requests a KiteProp
 const IMG_DELAY_MS = 150;     // Delay entre descargas de imágenes
 const MAX_RETRIES = 3;
@@ -149,9 +150,13 @@ function detectNextPage(html: string, currentPage: number): boolean {
 async function getAllPropertyUrls(): Promise<{
   urlMap: Map<string, "venta" | "alquiler">;
   foundByOp: Record<"venta" | "alquiler", number>;
+  incomplete: Record<"venta" | "alquiler", boolean>;
 }> {
   const urlMap = new Map<string, "venta" | "alquiler">();
   const foundByOp: Record<"venta" | "alquiler", number> = { venta: 0, alquiler: 0 };
+  // true si se cortó la paginación por un fetch fallido (red/timeout/bloqueo)
+  // en vez de porque genuinamente no hay más páginas — ver nota más abajo.
+  const incomplete: Record<"venta" | "alquiler", boolean> = { venta: false, alquiler: false };
 
   // Secciones separadas — fuente de verdad para la operación (sale → venta, rental → alquiler)
   const sections: { url: string; op: "venta" | "alquiler"; opType: string }[] = [
@@ -167,7 +172,16 @@ async function getAllPropertyUrls(): Promise<{
       const pageUrl = `${section.url}?opType=${section.opType}&page=${page}`;
       const html = await fetchHtml(pageUrl);
 
-      if (!html) break;
+      if (!html) {
+        // No se pudo traer esta página (después de reintentos) — NO es lo
+        // mismo que "no hay más páginas". Si esto pasa en la página 1 puede
+        // ser real (0 resultados), pero en cualquier página posterior es casi
+        // seguro un fallo transitorio de red/rate-limit de KiteProp. Marcamos
+        // la sección como incompleta para no confiar en su conteo (y así no
+        // archivar de más) — ver `incomplete` en syncAll().
+        if (page > 1) incomplete[section.op] = true;
+        break;
+      }
 
       const links = extractPropertyLinks(html);
       if (links.length === 0) break;
@@ -200,9 +214,9 @@ async function getAllPropertyUrls(): Promise<{
   }
 
   console.log(
-    `[SYNC] ✔ ${urlMap.size} URLs encontradas en KiteProp (venta: ${foundByOp.venta}, alquiler: ${foundByOp.alquiler})`
+    `[SYNC] ✔ ${urlMap.size} URLs encontradas en KiteProp (venta: ${foundByOp.venta}${incomplete.venta ? " ⚠ incompleto" : ""}, alquiler: ${foundByOp.alquiler}${incomplete.alquiler ? " ⚠ incompleto" : ""})`
   );
-  return { urlMap, foundByOp };
+  return { urlMap, foundByOp, incomplete };
 }
 
 // ─── KiteProp Scraper: Property Detail ───────────────────────────────────────
@@ -860,7 +874,7 @@ async function syncAll(
 
   // 1. Obtener todas las URLs de KiteProp (con operación ya conocida desde el listado)
   console.log("[SYNC] ▶ Leyendo propiedades de KiteProp...");
-  const { urlMap: kiteUrlMap, foundByOp } = await getAllPropertyUrls();
+  const { urlMap: kiteUrlMap, foundByOp, incomplete } = await getAllPropertyUrls();
   if (kiteUrlMap.size === 0) {
     console.warn("[SYNC] ⚠ No se encontraron propiedades en KiteProp");
     return result;
@@ -1035,13 +1049,20 @@ async function syncAll(
     if (db.operation === "venta") dbHasOp.venta = true;
     if (db.operation === "alquiler") dbHasOp.alquiler = true;
   }
+  // Además del caso "0 encontradas": si la paginación de una sección se
+  // cortó por un fetch fallido (no porque se acabaron las páginas), el
+  // conteo de esa operación es parcial y tampoco es confiable, aunque haya
+  // dado > 0 — ver `incomplete` en getAllPropertyUrls().
   const skipArchiveOp = {
-    venta: dbHasOp.venta && foundByOp.venta === 0,
-    alquiler: dbHasOp.alquiler && foundByOp.alquiler === 0,
+    venta: dbHasOp.venta && (foundByOp.venta === 0 || incomplete.venta),
+    alquiler: dbHasOp.alquiler && (foundByOp.alquiler === 0 || incomplete.alquiler),
   };
   for (const op of ["venta", "alquiler"] as const) {
     if (skipArchiveOp[op]) {
-      const msg = `Se encontraron 0 propiedades de "${op}" en KiteProp pero hay filas de esa operación en la DB — posible fallo de scraping. No se archiva nada de "${op}" esta corrida.`;
+      const reason = incomplete[op]
+        ? `la paginación se cortó por un fetch fallido (encontradas ${foundByOp[op]} antes de cortar)`
+        : `se encontraron 0 propiedades de "${op}" en KiteProp`;
+      const msg = `${reason} pero hay filas de "${op}" en la DB — posible fallo de scraping. No se archiva nada de "${op}" esta corrida.`;
       console.warn(`[SYNC] ⚠ ${msg}`);
       result.errors.push(`safety-skip-archive:${op}: ${msg}`);
     }
